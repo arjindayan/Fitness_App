@@ -4,7 +4,9 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -13,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { useAddExerciseMutation, useProgramDetail } from '@/services/programService';
 import { useMovementList } from '@/services/movementService';
 import { theme } from '@/theme';
@@ -45,7 +48,7 @@ export default function ProgramDetailScreen() {
   const { data: movements, isLoading: isMovementsLoading } = useMovementList(movementParams);
 
   const { control, handleSubmit, reset } = useForm<ExerciseFormValues>({
-    defaultValues: { sets: '3', reps: '10', restSeconds: '90', note: '' },
+    defaultValues: { sets: '3', reps: '10', restSeconds: '', note: '' },
   });
 
   const handleAddExercise = handleSubmit(async (values) => {
@@ -55,8 +58,8 @@ export default function ProgramDetailScreen() {
       movementId: selectedMovement.id,
       sets: Number(values.sets),
       reps: values.reps,
-      restSeconds: Number(values.restSeconds) || null,
-      note: values.note || null,
+      restSeconds: values.restSeconds ? Number(values.restSeconds) : null,
+      note: values.note?.trim() || null,
     });
     reset();
     setSelectedMovement(null);
@@ -66,6 +69,7 @@ export default function ProgramDetailScreen() {
   if (!programId) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <PastelBackdrop />
         <View style={styles.container}>
           <Text style={styles.title}>Program bulunamadı</Text>
         </View>
@@ -76,8 +80,9 @@ export default function ProgramDetailScreen() {
   if (isLoading || !data) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <PastelBackdrop />
         <View style={styles.container}>
-          <ActivityIndicator />
+          <ActivityIndicator color={theme.colors.text} />
         </View>
       </SafeAreaView>
     );
@@ -87,6 +92,7 @@ export default function ProgramDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <PastelBackdrop />
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>{data.title}</Text>
@@ -129,7 +135,8 @@ export default function ProgramDetailScreen() {
                     <View key={`${exercise.id}-${idx}`} style={styles.exerciseRow}>
                       <Text style={styles.exerciseName}>{exercise.reps} tekrar • {exercise.sets} set</Text>
                       <Text style={styles.exerciseMeta}>
-                        Dinlenme {exercise.rest_seconds ?? 0}s {exercise.note ? `• ${exercise.note}` : ''}
+                        {exercise.rest_seconds ? `Dinlenme ${exercise.rest_seconds}s` : 'Dinlenme belirtilmedi'}
+                        {exercise.note ? ` • ${exercise.note}` : ''}
                       </Text>
                     </View>
                   ))
@@ -140,110 +147,114 @@ export default function ProgramDetailScreen() {
         />
 
         <Modal visible={Boolean(selectedWorkoutId)} animationType="slide">
-          <SafeAreaView style={styles.modalSafeArea}>
-            <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Hareket seç</Text>
-              <TextInput
-                style={styles.search}
-                placeholder="Ara"
-                placeholderTextColor={theme.colors.subtle}
-                value={search}
-                onChangeText={setSearch}
-              />
-              {isMovementsLoading ? (
-                <ActivityIndicator />
-              ) : (
-                <FlatList
-                  data={movements ?? []}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={{ gap: 8 }}
-                  renderItem={({ item }) => (
-                    <Pressable
-                      style={[styles.movementRow, selectedMovement?.id === item.id && styles.movementRowSelected]}
-                      onPress={() => setSelectedMovement({ id: item.id, name: item.name })}
-                    >
-                      <Text style={styles.movementName}>{item.name}</Text>
-                      <Text style={styles.movementMeta}>{item.equipment ?? 'Ekipman yok'}</Text>
-                    </Pressable>
-                  )}
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            <SafeAreaView style={styles.modalSafeArea}>
+              <PastelBackdrop />
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Hareket seç</Text>
+                <TextInput
+                  style={styles.search}
+                  placeholder="Ara"
+                  placeholderTextColor={theme.colors.subtle}
+                  value={search}
+                  onChangeText={setSearch}
                 />
-              )}
+                {isMovementsLoading ? (
+                  <ActivityIndicator color={theme.colors.text} />
+                ) : (
+                  <FlatList
+                    data={movements ?? []}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={{ gap: 8, paddingBottom: 12 }}
+                    keyboardShouldPersistTaps="handled"
+                    renderItem={({ item }) => (
+                      <Pressable
+                        style={[styles.movementRow, selectedMovement?.id === item.id && styles.movementRowSelected]}
+                        onPress={() => setSelectedMovement({ id: item.id, name: item.name })}
+                      >
+                        <Text style={styles.movementName}>{item.name}</Text>
+                        <Text style={styles.movementMeta}>{item.equipment ?? 'Ekipman yok'}</Text>
+                      </Pressable>
+                    )}
+                  />
+                )}
 
-              {selectedMovement ? (
-                <View style={styles.form}>
-                  <Controller
-                    control={control}
-                    name="sets"
-                    render={({ field: { onChange, value } }) => (
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Set"
-                        placeholderTextColor={theme.colors.subtle}
-                        keyboardType="numeric"
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    )}
-                  />
-                  <Controller
-                    control={control}
-                    name="reps"
-                    render={({ field: { onChange, value } }) => (
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Tekrar"
-                        placeholderTextColor={theme.colors.subtle}
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    )}
-                  />
-                  <Controller
-                    control={control}
-                    name="restSeconds"
-                    render={({ field: { onChange, value } }) => (
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Dinlenme (sn)"
-                        placeholderTextColor={theme.colors.subtle}
-                        keyboardType="numeric"
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    )}
-                  />
-                  <Controller
-                    control={control}
-                    name="note"
-                    render={({ field: { onChange, value } }) => (
-                      <TextInput
-                        style={[styles.input, { height: 64 }]}
-                        placeholder="Not"
-                        placeholderTextColor={theme.colors.subtle}
-                        value={value}
-                        onChangeText={onChange}
-                        multiline
-                      />
-                    )}
-                  />
-                  <Pressable style={styles.saveButton} onPress={handleAddExercise}>
-                    <Text style={styles.saveButtonText}>{addExercise.isPending ? 'Ekleniyor...' : 'Kaydet'}</Text>
-                  </Pressable>
-                </View>
-              ) : null}
+                {selectedMovement ? (
+                  <View style={styles.form}>
+                    <Controller
+                      control={control}
+                      name="sets"
+                      render={({ field: { onChange, value } }) => (
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Set"
+                          placeholderTextColor={theme.colors.subtle}
+                          keyboardType="numeric"
+                          value={value}
+                          onChangeText={onChange}
+                        />
+                      )}
+                    />
+                    <Controller
+                      control={control}
+                      name="reps"
+                      render={({ field: { onChange, value } }) => (
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Tekrar"
+                          placeholderTextColor={theme.colors.subtle}
+                          value={value}
+                          onChangeText={onChange}
+                        />
+                      )}
+                    />
+                    <Controller
+                      control={control}
+                      name="restSeconds"
+                      render={({ field: { onChange, value } }) => (
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Dinlenme (sn) - opsiyonel"
+                          placeholderTextColor={theme.colors.subtle}
+                          keyboardType="numeric"
+                          value={value}
+                          onChangeText={onChange}
+                        />
+                      )}
+                    />
+                    <Controller
+                      control={control}
+                      name="note"
+                      render={({ field: { onChange, value } }) => (
+                        <TextInput
+                          style={[styles.input, { height: 64 }]}
+                          placeholder="Not"
+                          placeholderTextColor={theme.colors.subtle}
+                          value={value}
+                          onChangeText={onChange}
+                          multiline
+                        />
+                      )}
+                    />
+                    <Pressable style={styles.saveButton} onPress={handleAddExercise}>
+                      <Text style={styles.saveButtonText}>{addExercise.isPending ? 'Ekleniyor...' : 'Kaydet'}</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
 
-              <Pressable
-                style={[styles.saveButton, { backgroundColor: theme.colors.surfaceAlt, marginTop: 12 }]}
-                onPress={() => {
-                  setSelectedWorkoutId(null);
-                  setSelectedMovement(null);
-                  reset();
-                }}
-              >
-                <Text style={styles.saveButtonText}>Kapat</Text>
-              </Pressable>
-            </View>
-          </SafeAreaView>
+                <Pressable
+                  style={[styles.saveButton, { backgroundColor: theme.colors.surfaceAlt, marginTop: 12 }]}
+                  onPress={() => {
+                    setSelectedWorkoutId(null);
+                    setSelectedMovement(null);
+                    reset();
+                  }}
+                >
+                  <Text style={[styles.saveButtonText, { color: theme.colors.text }]}>Kapat</Text>
+                </Pressable>
+              </View>
+            </SafeAreaView>
+          </KeyboardAvoidingView>
         </Modal>
       </View>
     </SafeAreaView>
@@ -257,7 +268,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
     padding: 16,
   },
   header: {
@@ -272,12 +282,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   backButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: theme.radii.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: theme.radii.pill,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surface,
+    shadowColor: '#9eb2db',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
   },
   backLabel: {
     color: theme.colors.text,
@@ -286,10 +300,14 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radii.lg,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     gap: 8,
+    shadowColor: '#a2b4d8',
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 10 },
   },
   cardHeader: {
     flexDirection: 'row',
@@ -299,7 +317,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: theme.colors.text,
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   cardMeta: {
     color: theme.colors.muted,
@@ -309,14 +327,19 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: theme.colors.surfaceAlt,
-    borderRadius: theme.radii.md,
-    paddingHorizontal: 12,
+    borderRadius: theme.radii.pill,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    shadowColor: '#9eb2db',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
   },
   addButtonText: {
     color: theme.colors.text,
+    fontWeight: '600',
   },
   exerciseRow: {
     backgroundColor: theme.colors.inputBg,
@@ -328,7 +351,7 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     color: theme.colors.text,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   exerciseMeta: {
     color: theme.colors.muted,
@@ -339,7 +362,6 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: theme.colors.background,
     padding: 16,
   },
   modalTitle: {
@@ -367,11 +389,11 @@ const styles = StyleSheet.create({
   },
   movementRowSelected: {
     borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.surfaceAlt,
+    backgroundColor: theme.colors.primarySoft,
   },
   movementName: {
     color: theme.colors.text,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   movementMeta: {
     color: theme.colors.muted,
@@ -394,9 +416,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 12,
+    shadowColor: '#b8c7ff',
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 8 },
   },
   saveButtonText: {
-    color: theme.colors.text,
-    fontWeight: '600',
+    color: '#1a2a52',
+    fontWeight: '700',
   },
 });

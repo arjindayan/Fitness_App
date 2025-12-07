@@ -2,7 +2,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { signInWithGoogle } from '@/services/authService';
 import { theme } from '@/theme';
 
@@ -28,20 +30,21 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <LinearGradient colors={['#e9e5ff', '#d7e8ff', '#f7e6ff']} style={{ flex: 1 }}>
+    <SafeAreaView style={styles.safeArea}>
+      <PastelBackdrop />
       <View style={styles.container}>
         <View style={styles.heroCard}>
           <View style={styles.heroTextBlock}>
             <Text style={styles.badge}>FitnessXS</Text>
-            <Text style={styles.titleLineOne}>Make your body</Text>
-            <Text style={styles.titleLineTwo}>Healthy & Fit</Text>
+            <Text style={styles.titleLineOne}>Güçlü hisset</Text>
+            <Text style={styles.titleLineTwo}>Zarif görün</Text>
             <Text style={styles.copy}>
-              Kişiselleştirilmiş program, haftalık planlama, kaçırdığın günler otomatik kaydırma.
+              Kişiselleştirilmiş program, haftalık planlama, kaçırdığın günler için akıllı kaydırma.
             </Text>
           </View>
-          <View style={styles.placeholderCircle}>
+          <LinearGradient colors={['#c0e1ff', '#f6d9ff']} style={styles.placeholderCircle}>
             <View style={styles.placeholderBar} />
-          </View>
+          </LinearGradient>
         </View>
 
         <View style={styles.sectionCard}>
@@ -62,7 +65,7 @@ export default function WelcomeScreen() {
               <Text style={styles.chipText}>Haftalık plan</Text>
             </View>
             <View style={styles.chip}>
-              <Text style={styles.chipIcon}>🔥</Text>
+              <Text style={styles.chipIcon}>🎯</Text>
               <Text style={styles.chipText}>Hedef odaklı</Text>
             </View>
             <View style={styles.chip}>
@@ -79,11 +82,15 @@ export default function WelcomeScreen() {
           </Link>
         </Text>
       </View>
-    </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   container: {
     flex: 1,
     paddingHorizontal: 24,
@@ -91,16 +98,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   heroCard: {
-    backgroundColor: '#ffffffdd',
+    backgroundColor: theme.colors.surface,
     borderRadius: 24,
     padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e5f0',
-    shadowColor: '#7b6bff',
-    shadowOpacity: 0.2,
+    borderColor: theme.colors.border,
+    shadowColor: '#7b8dbd',
+    shadowOpacity: 0.25,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 12 },
   },
@@ -113,23 +120,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: theme.radii.pill,
-    backgroundColor: '#f2f2ff',
-    color: '#7b6bff',
+    backgroundColor: theme.colors.primarySoft,
+    color: '#1a2a52',
     fontWeight: '700',
     letterSpacing: 0.3,
   },
   titleLineOne: {
-    color: '#2b2d42',
+    color: theme.colors.text,
     fontSize: 24,
     fontWeight: '700',
   },
   titleLineTwo: {
-    color: '#7b6bff',
+    color: '#1a2a52',
     fontSize: 28,
     fontWeight: '800',
   },
   copy: {
-    color: '#5b6170',
+    color: theme.colors.muted,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -137,12 +144,11 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 120,
-    backgroundColor: '#f4f4ff',
     marginLeft: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#e6e8f2',
+    borderColor: theme.colors.border,
   },
   placeholderBar: {
     width: 50,
@@ -151,11 +157,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#d5d8e6',
   },
   sectionCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e3e6f0',
+    borderColor: theme.colors.border,
     gap: 12,
     shadowColor: '#000',
     shadowOpacity: 0.08,
@@ -163,7 +169,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
   },
   sectionTitle: {
-    color: '#2b2d42',
+    color: theme.colors.text,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -171,30 +177,30 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   primaryButton: {
-    backgroundColor: '#7b6bff',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 16,
     borderRadius: theme.radii.md,
     alignItems: 'center',
-    shadowColor: '#7b6bff',
+    shadowColor: '#7b8dbd',
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 10 },
   },
   primaryLabel: {
-    color: '#fff',
+    color: '#1a2a52',
     fontSize: 16,
     fontWeight: '700',
   },
   secondaryButton: {
-    backgroundColor: '#f5f6fc',
+    backgroundColor: theme.colors.inputBg,
     paddingVertical: 16,
     borderRadius: theme.radii.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#d9dded',
+    borderColor: theme.colors.border,
   },
   secondaryLabel: {
-    color: '#2b2d42',
+    color: theme.colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -209,25 +215,25 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#f7f7ff',
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.radii.pill,
     borderWidth: 1,
-    borderColor: '#e5e8f3',
+    borderColor: theme.colors.border,
   },
   chipIcon: {
     fontSize: 15,
   },
   chipText: {
-    color: '#4a4f63',
+    color: theme.colors.text,
     fontWeight: '600',
     fontSize: 13,
   },
   helper: {
-    color: '#6f758c',
+    color: theme.colors.muted,
     textAlign: 'center',
   },
   link: {
-    color: '#7b6bff',
-    fontWeight: '700',
+    color: '#1a2a52',
+    fontWeight: '800',
   },
 });

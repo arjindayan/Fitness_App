@@ -3,8 +3,10 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
+import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { signOut } from '@/services/authService';
 import { upsertProfile } from '@/services/profileService';
@@ -109,130 +111,137 @@ export default function OnboardingScreen() {
   });
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>Hedeflerini tanımla</Text>
-        <Pressable
-          onPress={async () => {
-            await signOut();
-            router.replace('/(auth)');
-          }}
-        >
-          <Text style={styles.exitText}>Çıkış yap</Text>
-        </Pressable>
-      </View>
-      <Text style={styles.subtitle}>Programlarını sana göre optimize edelim.</Text>
-
-      <View style={styles.form}>
-        <Controller
-          control={control}
-          name="displayName"
-          render={({ field: { onBlur, onChange, value } }) => (
-            <View>
-              <TextInput
-                style={styles.input}
-                placeholder="Adın"
-                placeholderTextColor={theme.colors.subtle}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
-              {errors.displayName ? <Text style={styles.errorText}>{errors.displayName.message}</Text> : null}
-            </View>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="goal"
-          render={({ field: { onBlur, onChange, value } }) => (
-            <View>
-              <TextInput
-                style={styles.input}
-                placeholder="Hedef (örn. güçlenmek, yağ yakmak)"
-                placeholderTextColor={theme.colors.subtle}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
-              {errors.goal ? <Text style={styles.errorText}>{errors.goal.message}</Text> : null}
-            </View>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="goalDescription"
-          render={({ field: { onBlur, onChange, value } }) => (
-            <TextInput
-              style={[styles.input, styles.multiline]}
-              placeholder="Kısa açıklama (opsiyonel)"
-              placeholderTextColor={theme.colors.subtle}
-              multiline
-              numberOfLines={3}
-              onBlur={onBlur}
-              onChangeText={onChange}
-              value={value}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="timezone"
-          render={({ field: { onBlur, onChange, value } }) => (
-            <View>
-              <TextInput
-                style={styles.input}
-                placeholder="Saat dilimi (örn. Europe/Istanbul)"
-                placeholderTextColor={theme.colors.subtle}
-                autoCapitalize="none"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
-              {errors.timezone ? <Text style={styles.errorText}>{errors.timezone.message}</Text> : null}
-            </View>
-          )}
-        />
-
-        <View>
-          <Text style={styles.label}>Haftalık idman günlerin</Text>
-          <View style={styles.daysWrap}>
-            {TRAINING_DAYS.map((day) => {
-              const isActive = selectedDays.includes(day.key);
-              return (
-                <Pressable
-                  key={day.key}
-                  onPress={() => toggleDay(day.key)}
-                  style={[styles.dayChip, isActive && styles.dayChipActive]}
-                >
-                  <Text style={[styles.dayLabel, isActive && styles.dayLabelActive]}>{day.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {errors.trainingDays ? <Text style={styles.errorText}>{errors.trainingDays.message}</Text> : null}
+    <SafeAreaView style={styles.safeArea}>
+      <PastelBackdrop />
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Hedeflerini tanımla</Text>
+          <Pressable
+            onPress={async () => {
+              await signOut();
+              router.replace('/(auth)');
+            }}
+          >
+            <Text style={styles.exitText}>Çıkış yap</Text>
+          </Pressable>
         </View>
-      </View>
+        <Text style={styles.subtitle}>Programlarını sana göre optimize edelim.</Text>
 
-      <Pressable style={styles.primaryButton} onPress={onSubmit} disabled={isSubmitting}>
-        <Text style={styles.primaryLabel}>{isSubmitting ? 'Kaydediliyor...' : 'Devam et'}</Text>
-      </Pressable>
-    </ScrollView>
+        <View style={styles.form}>
+          <Controller
+            control={control}
+            name="displayName"
+            render={({ field: { onBlur, onChange, value } }) => (
+              <View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Adın"
+                  placeholderTextColor={theme.colors.subtle}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+                {errors.displayName ? <Text style={styles.errorText}>{errors.displayName.message}</Text> : null}
+              </View>
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="goal"
+            render={({ field: { onBlur, onChange, value } }) => (
+              <View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Hedef (örn. güçlenmek, yağ yakmak)"
+                  placeholderTextColor={theme.colors.subtle}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+                {errors.goal ? <Text style={styles.errorText}>{errors.goal.message}</Text> : null}
+              </View>
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="goalDescription"
+            render={({ field: { onBlur, onChange, value } }) => (
+              <TextInput
+                style={[styles.input, styles.multiline]}
+                placeholder="Kısa açıklama (opsiyonel)"
+                placeholderTextColor={theme.colors.subtle}
+                multiline
+                numberOfLines={3}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                value={value}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="timezone"
+            render={({ field: { onBlur, onChange, value } }) => (
+              <View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Saat dilimi (örn. Europe/Istanbul)"
+                  placeholderTextColor={theme.colors.subtle}
+                  autoCapitalize="none"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+                {errors.timezone ? <Text style={styles.errorText}>{errors.timezone.message}</Text> : null}
+              </View>
+            )}
+          />
+
+          <View>
+            <Text style={styles.label}>Haftalık idman günlerin</Text>
+            <View style={styles.daysWrap}>
+              {TRAINING_DAYS.map((day) => {
+                const isActive = selectedDays.includes(day.key);
+                return (
+                  <Pressable
+                    key={day.key}
+                    onPress={() => toggleDay(day.key)}
+                    style={[styles.dayChip, isActive && styles.dayChipActive]}
+                  >
+                    <Text style={[styles.dayLabel, isActive && styles.dayLabelActive]}>{day.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {errors.trainingDays ? <Text style={styles.errorText}>{errors.trainingDays.message}</Text> : null}
+          </View>
+        </View>
+
+        <Pressable style={styles.primaryButton} onPress={onSubmit} disabled={isSubmitting}>
+          <Text style={styles.primaryLabel}>{isSubmitting ? 'Kaydediliyor...' : 'Devam et'}</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   container: {
     padding: 24,
     gap: 24,
-    backgroundColor: theme.colors.background,
+    paddingBottom: 40,
   },
   title: {
     color: theme.colors.text,
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   headerRow: {
     flexDirection: 'row',
@@ -251,11 +260,15 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    shadowColor: '#a2b4d8',
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 12 },
   },
   label: {
     color: theme.colors.text,
     marginBottom: 8,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   input: {
     backgroundColor: theme.colors.inputBg,
@@ -291,24 +304,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   dayLabelActive: {
-    color: theme.colors.text,
-    fontWeight: '600',
+    color: '#1a2a52',
+    fontWeight: '700',
   },
   primaryButton: {
     backgroundColor: theme.colors.primary,
     paddingVertical: 16,
     borderRadius: theme.radii.md,
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 12,
+    shadowColor: '#b8c7ff',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 10 },
   },
   primaryLabel: {
-    color: theme.colors.text,
+    color: '#1a2a52',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   exitText: {
     color: theme.colors.danger,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   errorText: {
     color: theme.colors.danger,

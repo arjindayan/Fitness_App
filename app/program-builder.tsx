@@ -3,7 +3,9 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,12 +15,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { useCreateProgramMutation } from '@/services/programService';
 import { useMovementList } from '@/services/movementService';
 import { useProgramBuilderStore } from '@/state/programBuilderStore';
 import { BuilderExercise } from '@/types/program';
 import { TrainingDay } from '@/types/profile';
+import { theme } from '@/theme';
 
 type ExerciseForm = {
   sets: string;
@@ -54,7 +58,7 @@ export default function ProgramBuilderScreen() {
     handleSubmit,
     reset: resetExerciseForm,
   } = useForm<ExerciseForm>({
-    defaultValues: { sets: '3', reps: '10', restSeconds: '90', note: '' },
+    defaultValues: { sets: '3', reps: '10', restSeconds: '', note: '' },
   });
 
   const handleAddExercise = (day: TrainingDay) => {
@@ -73,8 +77,8 @@ export default function ProgramBuilderScreen() {
       movementName: selectedMovementName,
       sets: Number(values.sets),
       reps: values.reps,
-      restSeconds: Number(values.restSeconds),
-      note: values.note,
+      restSeconds: values.restSeconds ? Number(values.restSeconds) : null,
+      note: values.note?.trim() || null,
     };
 
     addExercise(pickerDay, exercise);
@@ -86,7 +90,7 @@ export default function ProgramBuilderScreen() {
 
   const handleProgramSave = async () => {
     if (!meta.title || trainingDays.length === 0) {
-      alert('Program adŽñ ve eŽYitim gÇ¬nleri gerekli');
+      alert('Program adı ve antrenman günleri gerekli');
       return;
     }
 
@@ -113,26 +117,31 @@ export default function ProgramBuilderScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }}>
-        <Text style={styles.stepLabel}>AdŽñm {step} / 2</Text>
+      <PastelBackdrop />
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Program Oluştur</Text>
+          <Text style={styles.stepLabel}>Adım {step} / 2</Text>
+        </View>
+
         {step === 1 ? (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Program bilgileri</Text>
             <TextInput
               style={styles.input}
-              placeholder="Program adŽñ"
-              placeholderTextColor="#5b6170"
+              placeholder="Program adı"
+              placeholderTextColor={theme.colors.subtle}
               value={meta.title}
               onChangeText={(text) => setMeta({ title: text })}
             />
             <TextInput
               style={styles.input}
-              placeholder="Fokus (Çôr. push/pull/legs)"
-              placeholderTextColor="#5b6170"
+              placeholder="Fokus (örn. push/pull/legs)"
+              placeholderTextColor={theme.colors.subtle}
               value={meta.focus}
               onChangeText={(text) => setMeta({ focus: text })}
             />
-            <Text style={styles.sectionSubtitle}>Antrenman gÇ¬nleri</Text>
+            <Text style={styles.sectionSubtitle}>Antrenman günleri</Text>
             <View style={styles.daysGrid}>
               {TRAINING_DAYS.map((day) => {
                 const active = trainingDays.includes(day.key);
@@ -153,9 +162,9 @@ export default function ProgramBuilderScreen() {
           </View>
         ) : (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Workout planŽñ</Text>
+            <Text style={styles.sectionTitle}>Workout planı</Text>
             {trainingDays.length === 0 ? (
-              <Text style={styles.helperText}>Ç-nce antrenman gÇ¬nlerini seÇõ</Text>
+              <Text style={styles.helperText}>Önce antrenman günlerini seç</Text>
             ) : (
               trainingDays.map((day) => {
                 const workout = workouts.find((w) => w.day === day);
@@ -185,7 +194,7 @@ export default function ProgramBuilderScreen() {
             )}
             <Pressable style={styles.primaryButton} onPress={handleProgramSave}>
               <Text style={styles.primaryButtonText}>
-                {createProgramMutation.isPending ? 'Kaydediliyor...' : 'ProgramŽñ kaydet'}
+                {createProgramMutation.isPending ? 'Kaydediliyor...' : 'Programı kaydet'}
               </Text>
             </Pressable>
           </View>
@@ -193,104 +202,107 @@ export default function ProgramBuilderScreen() {
       </ScrollView>
 
       <Modal visible={pickerDay !== null} animationType="slide">
-        <SafeAreaView style={styles.modalSafeArea}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Hareket seÇõ</Text>
-            {isLoading ? (
-              <ActivityIndicator />
-            ) : (
-              <ScrollView style={{ flex: 1 }}>
-                {movements?.map((movement) => (
-                  <Pressable
-                    key={movement.id}
-                    style={styles.movementRow}
-                    onPress={() => {
-                      setSelectedMovementId(movement.id);
-                      setSelectedMovementName(movement.name);
-                    }}
-                  >
-                    <Text style={styles.movementName}>{movement.name}</Text>
-                    <Text style={styles.movementMeta}>{movement.equipment ?? 'Ekipman yok'}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            )}
-            {selectedMovementId ? (
-              <View style={styles.exerciseForm}>
-                <Text style={styles.sectionSubtitle}>Set / tekrar</Text>
-                <Controller
-                  control={control}
-                  name="sets"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Set"
-                      placeholderTextColor="#5b6170"
-                      value={value}
-                      onChangeText={onChange}
-                      keyboardType="numeric"
-                    />
-                  )}
-                />
-                <Controller
-                  control={control}
-                  name="reps"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Tekrar (Çôrn. 8-10)"
-                      placeholderTextColor="#5b6170"
-                      value={value}
-                      onChangeText={onChange}
-                    />
-                  )}
-                />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <SafeAreaView style={styles.modalSafeArea}>
+            <PastelBackdrop />
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Hareket seç</Text>
+              {isLoading ? (
+                <ActivityIndicator color={theme.colors.text} />
+              ) : (
+                <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+                  {movements?.map((movement) => (
+                    <Pressable
+                      key={movement.id}
+                      style={styles.movementRow}
+                      onPress={() => {
+                        setSelectedMovementId(movement.id);
+                        setSelectedMovementName(movement.name);
+                      }}
+                    >
+                      <Text style={styles.movementName}>{movement.name}</Text>
+                      <Text style={styles.movementMeta}>{movement.equipment ?? 'Ekipman yok'}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+              {selectedMovementId ? (
+                <View style={styles.exerciseForm}>
+                  <Text style={styles.sectionSubtitle}>Set / tekrar</Text>
+                  <Controller
+                    control={control}
+                    name="sets"
+                    render={({ field: { onChange, value } }) => (
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Set"
+                        placeholderTextColor={theme.colors.subtle}
+                        value={value}
+                        onChangeText={onChange}
+                        keyboardType="numeric"
+                      />
+                    )}
+                  />
+                  <Controller
+                    control={control}
+                    name="reps"
+                    render={({ field: { onChange, value } }) => (
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Tekrar (örn. 8-10)"
+                        placeholderTextColor={theme.colors.subtle}
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    )}
+                  />
                 <Controller
                   control={control}
                   name="restSeconds"
                   render={({ field: { onChange, value } }) => (
                     <TextInput
                       style={styles.input}
-                      placeholder="Dinlenme saniye"
-                      placeholderTextColor="#5b6170"
+                      placeholder="Dinlenme saniye (opsiyonel)"
+                      placeholderTextColor={theme.colors.subtle}
                       value={value}
                       onChangeText={onChange}
                       keyboardType="numeric"
                     />
                   )}
                 />
-                <Controller
-                  control={control}
-                  name="note"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      style={[styles.input, { height: 80 }]}
-                      placeholder="Not"
-                      placeholderTextColor="#5b6170"
-                      value={value}
-                      onChangeText={onChange}
-                      multiline
-                    />
-                  )}
-                />
-                <Pressable style={styles.primaryButton} onPress={handleSaveExercise}>
-                  <Text style={styles.primaryButtonText}>Ekle</Text>
-                </Pressable>
-              </View>
-            ) : null}
+                  <Controller
+                    control={control}
+                    name="note"
+                    render={({ field: { onChange, value } }) => (
+                      <TextInput
+                        style={[styles.input, { height: 80 }]}
+                        placeholder="Not"
+                        placeholderTextColor={theme.colors.subtle}
+                        value={value}
+                        onChangeText={onChange}
+                        multiline
+                      />
+                    )}
+                  />
+                  <Pressable style={styles.primaryButton} onPress={handleSaveExercise}>
+                    <Text style={styles.primaryButtonText}>Ekle</Text>
+                  </Pressable>
+                </View>
+              ) : null}
 
-            <Pressable
-              style={[styles.primaryButton, { backgroundColor: '#1f1f25', marginTop: 12 }]}
-              onPress={() => {
-                setPickerDay(null);
-                setSelectedMovementId(null);
-                setSelectedMovementName('');
-              }}
-            >
-              <Text style={styles.primaryButtonText}>Kapat</Text>
-            </Pressable>
-          </View>
-        </SafeAreaView>
+              <Pressable
+                style={[styles.primaryButton, { backgroundColor: theme.colors.surfaceAlt, marginTop: 12 }]}
+                onPress={() => {
+                  setPickerDay(null);
+                  setSelectedMovementId(null);
+                  setSelectedMovementName('');
+                }}
+              >
+                <Text style={[styles.primaryButtonText, { color: theme.colors.text }]}>Kapat</Text>
+              </Pressable>
+            </View>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -299,41 +311,58 @@ export default function ProgramBuilderScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#030303',
+    backgroundColor: theme.colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#030303',
-    padding: 16,
   },
-  card: {
-    backgroundColor: '#0b0f18',
-    borderRadius: 16,
+  content: {
     padding: 16,
-    borderColor: '#171c2d',
-    borderWidth: 1,
-    gap: 12,
+    paddingBottom: 140,
+    gap: 18,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  title: {
+    color: theme.colors.text,
+    fontSize: 26,
+    fontWeight: '800',
   },
   stepLabel: {
-    color: '#8f94a3',
-    marginBottom: 8,
+    color: theme.colors.muted,
+    fontWeight: '600',
+  },
+  card: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 18,
+    padding: 16,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    gap: 12,
+    shadowColor: '#a2b4d8',
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
   },
   sectionTitle: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 20,
     fontWeight: '700',
   },
   sectionSubtitle: {
-    color: '#c5c9d6',
-    fontWeight: '600',
+    color: theme.colors.muted,
+    fontWeight: '700',
   },
   input: {
-    backgroundColor: '#11121a',
+    backgroundColor: theme.colors.inputBg,
     borderRadius: 12,
     padding: 12,
-    color: '#fff',
+    color: theme.colors.text,
     borderWidth: 1,
-    borderColor: '#1f2433',
+    borderColor: theme.colors.border,
   },
   daysGrid: {
     flexDirection: 'row',
@@ -343,33 +372,38 @@ const styles = StyleSheet.create({
   dayChip: {
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1f2433',
+    borderColor: theme.colors.border,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    backgroundColor: theme.colors.surfaceAlt,
   },
   dayChipActive: {
-    backgroundColor: '#7f5dfa',
-    borderColor: '#7f5dfa',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   dayLabel: {
-    color: '#9ea3b5',
+    color: theme.colors.muted,
   },
   dayLabelActive: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#1a2a52',
+    fontWeight: '700',
   },
   primaryButton: {
-    backgroundColor: '#7f5dfa',
-    borderRadius: 12,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 14,
     alignItems: 'center',
     paddingVertical: 14,
+    shadowColor: '#b8c7ff',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 10 },
   },
   primaryButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#1a2a52',
+    fontWeight: '700',
   },
   helperText: {
-    color: '#c5c9d6',
+    color: theme.colors.muted,
   },
   workoutBlock: {
     marginTop: 12,
@@ -381,63 +415,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   workoutTitle: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   addMovementButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2b2b33',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceAlt,
+    shadowColor: '#9eb2db',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
   },
   addMovementLabel: {
-    color: '#9ea3b5',
+    color: theme.colors.text,
   },
   exerciseCard: {
-    backgroundColor: '#11121a',
+    backgroundColor: theme.colors.inputBg,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#1f2433',
+    borderColor: theme.colors.border,
     gap: 4,
   },
   exerciseTitle: {
-    color: '#fff',
-    fontWeight: '600',
+    color: theme.colors.text,
+    fontWeight: '700',
   },
   exerciseMeta: {
-    color: '#9ea3b5',
+    color: theme.colors.muted,
   },
   removeText: {
-    color: '#ff8c8c',
+    color: theme.colors.danger,
+    fontWeight: '700',
   },
   modalSafeArea: {
     flex: 1,
-    backgroundColor: '#030303',
+    backgroundColor: theme.colors.background,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#030303',
     padding: 16,
+    gap: 12,
   },
   modalTitle: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   movementRow: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2433',
+    borderBottomColor: theme.colors.border,
   },
   movementName: {
-    color: '#fff',
+    color: theme.colors.text,
+    fontWeight: '700',
   },
   movementMeta: {
-    color: '#9ea3b5',
+    color: theme.colors.muted,
     fontSize: 12,
   },
   exerciseForm: {

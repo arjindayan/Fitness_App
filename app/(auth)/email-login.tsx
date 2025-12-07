@@ -3,8 +3,10 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
+import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { signInWithEmail, signUpWithEmail } from '@/services/authService';
 import { theme } from '@/theme';
 
@@ -48,72 +50,78 @@ export default function EmailLoginScreen() {
   });
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>{mode === 'login' ? 'Tekrar hoş geldin' : 'Yeni hesap oluştur'}</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <PastelBackdrop />
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.heading}>{mode === 'login' ? 'Tekrar hoş geldin' : 'Yeni hesap oluştur'}</Text>
 
-      <View style={styles.form}>
-        <Controller
-          control={control}
-          name="email"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <View>
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor={theme.colors.subtle}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
-              {errors.email ? <Text style={styles.errorText}>{errors.email.message}</Text> : null}
-            </View>
-          )}
-        />
+        <View style={styles.form}>
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  placeholderTextColor={theme.colors.subtle}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+                {errors.email ? <Text style={styles.errorText}>{errors.email.message}</Text> : null}
+              </View>
+            )}
+          />
 
-        <Controller
-          control={control}
-          name="password"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <View>
-              <TextInput
-                style={styles.input}
-                placeholder="Şifre"
-                placeholderTextColor={theme.colors.subtle}
-                secureTextEntry
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
-              {errors.password ? <Text style={styles.errorText}>{errors.password.message}</Text> : null}
-            </View>
-          )}
-        />
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Şifre"
+                  placeholderTextColor={theme.colors.subtle}
+                  secureTextEntry
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+                {errors.password ? <Text style={styles.errorText}>{errors.password.message}</Text> : null}
+              </View>
+            )}
+          />
 
-        <Pressable style={styles.primaryButton} onPress={onSubmit} disabled={isSubmitting}>
-          <Text style={styles.primaryLabel}>
-            {isSubmitting ? 'Gönderiliyor...' : mode === 'login' ? 'Giriş yap' : 'Kaydol'}
+          <Pressable style={styles.primaryButton} onPress={onSubmit} disabled={isSubmitting}>
+            <Text style={styles.primaryLabel}>
+              {isSubmitting ? 'Gönderiliyor...' : mode === 'login' ? 'Giriş yap' : 'Kaydol'}
+            </Text>
+          </Pressable>
+        </View>
+
+        <Pressable
+          onPress={() => setMode((curr) => (curr === 'login' ? 'signup' : 'login'))}
+          style={styles.switcher}
+        >
+          <Text style={styles.switcherLabel}>
+            {mode === 'login' ? 'Hesabın yok mu? Kaydol' : 'Zaten hesabın var mı? Giriş yap'}
           </Text>
         </Pressable>
-      </View>
-
-      <Pressable
-        onPress={() => setMode((curr) => (curr === 'login' ? 'signup' : 'login'))}
-        style={styles.switcher}
-      >
-        <Text style={styles.switcherLabel}>
-          {mode === 'login' ? 'Hesabın yok mu? Kaydol' : 'Zaten hesabın var mı? Giriş yap'}
-        </Text>
-      </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   container: {
     flexGrow: 1,
-    backgroundColor: theme.colors.background,
     padding: 24,
     justifyContent: 'center',
     gap: 24,
@@ -121,7 +129,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 28,
     color: theme.colors.text,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   form: {
     gap: 16,
@@ -130,6 +138,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     padding: 18,
+    shadowColor: '#a2b4d8',
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 12 },
   },
   input: {
     backgroundColor: theme.colors.inputBg,
@@ -147,10 +159,14 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: '#b8c7ff',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 10 },
   },
   primaryLabel: {
-    color: theme.colors.text,
-    fontWeight: '600',
+    color: '#1a2a52',
+    fontWeight: '700',
     fontSize: 16,
   },
   switcher: {
@@ -159,6 +175,7 @@ const styles = StyleSheet.create({
   },
   switcherLabel: {
     color: theme.colors.muted,
+    fontWeight: '700',
   },
   errorText: {
     color: theme.colors.danger,

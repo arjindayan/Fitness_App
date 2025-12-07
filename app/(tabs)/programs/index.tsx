@@ -2,34 +2,21 @@ import { useRouter } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Swipeable } from 'react-native-gesture-handler';
 
-import { useProgramList, fromDayIndex } from '@/services/programService';
+import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { useProgramList, fromDayIndex, useDeleteProgramMutation } from '@/services/programService';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
+import { theme } from '@/theme';
 
 export default function ProgramsScreen() {
   const router = useRouter();
   const { data, isLoading } = useProgramList();
+  const deleteMutation = useDeleteProgramMutation();
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LinearGradient
-        colors={['#fdf7ff', '#eef4ff', '#f6fdff']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
-      <LinearGradient
-        colors={['rgba(255, 194, 222, 0.42)', 'transparent']}
-        start={{ x: 0.2, y: 0.2 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.pinkGlow}
-      />
-      <LinearGradient
-        colors={['rgba(183, 214, 255, 0.45)', 'transparent']}
-        start={{ x: 1, y: 0 }}
-        end={{ x: 0.2, y: 1 }}
-        style={styles.blueGlow}
-      />
+      <PastelBackdrop />
       <View style={styles.container}>
         <View style={styles.header}>
           <View>
@@ -54,29 +41,41 @@ export default function ProgramsScreen() {
                 .filter(Boolean)
                 .join(' • ');
 
-              return (
+              const renderRightActions = () => (
                 <Pressable
-                  style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-                  onPress={() => router.push(`/(tabs)/programs/${item.id}`)}
+                  style={styles.deleteAction}
+                  onPress={() => deleteMutation.mutate(item.id)}
+                  disabled={deleteMutation.isPending}
                 >
-                  <LinearGradient
-                    colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{item.title}</Text>
-                    <View style={styles.focusPill}>
-                      <Text style={styles.focusPillText}>{item.focus ?? 'Genel'}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.cardMetaRow}>
-                    <Text style={styles.cardMeta}>{item.workouts.length} workout</Text>
-                    <View style={styles.metaDot} />
-                    <Text style={styles.cardMeta}>{dayLabels}</Text>
-                  </View>
+                  <Text style={styles.deleteText}>{deleteMutation.isPending ? 'Siliniyor...' : 'Sil'}</Text>
                 </Pressable>
+              );
+
+              return (
+                <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
+                  <Pressable
+                    style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+                    onPress={() => router.push(`/(tabs)/programs/${item.id}`)}
+                  >
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.78)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                    <View style={styles.cardHeader}>
+                      <Text style={styles.cardTitle}>{item.title}</Text>
+                      <View style={styles.focusPill}>
+                        <Text style={styles.focusPillText}>{item.focus ?? 'Genel'}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.cardMetaRow}>
+                      <Text style={styles.cardMeta}>{item.workouts.length} workout</Text>
+                      <View style={styles.metaDot} />
+                      <Text style={styles.cardMeta}>{dayLabels}</Text>
+                    </View>
+                  </Pressable>
+                </Swipeable>
               );
             }}
           />
@@ -89,7 +88,7 @@ export default function ProgramsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fdf7ff',
+    backgroundColor: theme.colors.background,
   },
   container: {
     flex: 1,
@@ -103,18 +102,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: '#0f1d3d',
+    color: theme.colors.text,
     fontSize: 28,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
   subtitle: {
-    color: '#60709a',
+    color: theme.colors.muted,
     marginTop: 6,
     fontSize: 14,
   },
   copy: {
-    color: '#60709a',
+    color: theme.colors.muted,
     fontSize: 16,
   },
   addButton: {
@@ -142,11 +141,11 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: theme.colors.surface,
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
+    borderColor: theme.colors.border,
     shadowColor: '#a2b4d8',
     shadowOpacity: 0.45,
     shadowRadius: 18,
@@ -165,7 +164,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardTitle: {
-    color: '#0f1d3d',
+    color: theme.colors.text,
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: -0.1,
@@ -200,20 +199,20 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#b4c7ee',
   },
-  pinkGlow: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    top: -80,
-    left: -40,
+  deleteAction: {
+    width: 90,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ff9fa5',
+    borderRadius: 18,
+    marginLeft: 8,
+    shadowColor: '#ff9fa5',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
   },
-  blueGlow: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    bottom: -60,
-    right: -40,
+  deleteText: {
+    color: '#1a0a11',
+    fontWeight: '800',
   },
 });

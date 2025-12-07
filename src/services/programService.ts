@@ -42,6 +42,26 @@ export type ProgramInput = {
   workouts: BuilderWorkout[];
 };
 
+export async function deleteProgram(programId: string) {
+  const { error } = await supabase.from('programs').delete().eq('id', programId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export function useDeleteProgramMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteProgram,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PROGRAM_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['today-plan'] });
+    },
+  });
+}
+
 export async function fetchPrograms(): Promise<
   (Program & { workouts: ProgramWorkout[]; training_days?: TrainingDay[] })[]
 > {

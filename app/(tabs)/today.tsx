@@ -1,11 +1,14 @@
 import { useRouter } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { fromDayIndex } from '@/services/programService';
 import { useTodayPlan, useUpdateScheduleStatus } from '@/services/scheduleService';
 import { useSessionContext } from '@/state/SessionProvider';
+import { fetchTodayStepsWithPermission } from '@/services/healthService';
 import { theme } from '@/theme';
 
 export default function TodayScreen() {
@@ -13,23 +16,37 @@ export default function TodayScreen() {
   const { profile } = useSessionContext();
   const { data, isLoading } = useTodayPlan();
   const updateStatus = useUpdateScheduleStatus();
+  const [steps, setSteps] = useState<number | null>(null);
+  const [stepsError, setStepsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+
+    fetchTodayStepsWithPermission().then((res) => {
+      setSteps(res.steps);
+      if (res.error) {
+        setStepsError(res.error);
+      }
+    });
+  }, []);
 
   const renderContent = () => {
     if (isLoading) {
       return (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Plan yükleniyor...</Text>
+        <View style={styles.glassCard}>
+          <Text style={styles.sectionTitle}>Plan yükleniyor...</Text>
+          <Text style={styles.copy}>Bugünkü antrenmanlarını hazırlıyoruz.</Text>
         </View>
       );
     }
 
     if (!data || data.length === 0) {
       return (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Bugün için plan yok</Text>
-          <Text style={styles.emptyCopy}>Aktif bir program oluşturup günlere ata.</Text>
-          <Pressable style={styles.cta} onPress={() => router.push('/(tabs)/programs')}>
-            <Text style={styles.ctaLabel}>Program oluştur</Text>
+        <View style={styles.glassCard}>
+          <Text style={styles.sectionTitle}>Bugün için plan yok</Text>
+          <Text style={styles.copy}>Program oluşturup günlerine ata, biz sana hatırlatalım.</Text>
+          <Pressable style={styles.primaryButton} onPress={() => router.push('/(tabs)/programs')}>
+            <Text style={styles.primaryLabel}>Program oluştur</Text>
           </Pressable>
         </View>
       );
@@ -39,15 +56,13 @@ export default function TodayScreen() {
       <FlatList
         data={data}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ gap: 16, paddingBottom: 16 }}
+        contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{item.program_workouts?.title ?? 'Antrenman'}</Text>
             <Text style={styles.cardMeta}>
-              {
-                TRAINING_DAYS.find((day) => day.key === fromDayIndex(item.program_workouts?.day_of_week ?? 0))?.label ??
-                'Belirsiz gün'
-              }
+              {TRAINING_DAYS.find((day) => day.key === fromDayIndex(item.program_workouts?.day_of_week ?? 0))?.label ??
+                'Belirsiz gün'}
             </Text>
             <Text style={styles.cardMeta}>Durum: {item.status === 'done' ? 'Tamamlandı' : 'Bekliyor'}</Text>
             <View style={styles.cardActions}>
@@ -72,10 +87,18 @@ export default function TodayScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <PastelBackdrop />
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.greeting}>Merhaba {profile?.display_name ?? 'sporsever'} 👋</Text>
+          <Text style={styles.greeting}>Merhaba {profile?.display_name ?? 'sporsever'} ✦</Text>
           <Text style={styles.subtitle}>Bugünkü planını hazırladık.</Text>
+        </View>
+        <View style={styles.stepsCard}>
+          <Text style={styles.sectionTitle}>Bugünkü adımlar</Text>
+          <Text style={styles.stepsValue}>
+            {steps !== null ? steps.toLocaleString('tr-TR') : Platform.OS === 'ios' ? '—' : 'iOS gerekli'}
+          </Text>
+          {stepsError ? <Text style={styles.stepsError}>{stepsError}</Text> : null}
         </View>
         {renderContent()}
       </View>
@@ -90,63 +113,105 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
     padding: 24,
-    gap: 24,
+    gap: 18,
   },
   header: {
     gap: 6,
   },
   greeting: {
     color: theme.colors.text,
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   subtitle: {
     color: theme.colors.muted,
+    fontSize: 15,
   },
-  emptyState: {
+  glassCard: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.lg,
-    padding: 24,
-    gap: 12,
+    borderRadius: 18,
+    padding: 20,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    gap: 10,
+    shadowColor: '#9eb2db',
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
   },
-  emptyTitle: {
+  sectionTitle: {
     color: theme.colors.text,
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  emptyCopy: {
-    color: theme.colors.muted,
+  stepsCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#9eb2db',
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 10 },
+    gap: 6,
   },
-  cta: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.radii.md,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  ctaLabel: {
+  stepsValue: {
+    fontSize: 32,
+    fontWeight: '800',
     color: theme.colors.text,
-    fontWeight: '600',
+  },
+  stepsError: {
+    color: theme.colors.muted,
+    fontSize: 13,
+  },
+  copy: {
+    color: theme.colors.muted,
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  primaryButton: {
+    marginTop: 6,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: 'center',
+    shadowColor: '#b8c7ff',
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  primaryLabel: {
+    color: '#1a2a52',
+    fontWeight: '700',
+  },
+  listContent: {
+    gap: 14,
+    paddingBottom: 24,
   },
   card: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.lg,
-    padding: 16,
-    borderColor: theme.colors.border,
+    borderRadius: 18,
+    padding: 18,
     borderWidth: 1,
-    gap: 6,
+    borderColor: theme.colors.border,
+    gap: 8,
+    shadowColor: '#a2b4d8',
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
   },
   cardTitle: {
     color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.1,
   },
   cardMeta: {
     color: theme.colors.muted,
+    fontWeight: '500',
   },
   cardActions: {
     flexDirection: 'row',
@@ -155,18 +220,22 @@ const styles = StyleSheet.create({
   },
   statusButton: {
     flex: 1,
-    borderRadius: theme.radii.md,
+    borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   statusLabel: {
     color: theme.colors.text,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   doneButton: {
-    backgroundColor: theme.colors.success,
+    backgroundColor: '#e0f6f0',
+    borderColor: '#c7e8db',
   },
   skipButton: {
-    backgroundColor: theme.colors.danger,
+    backgroundColor: '#ffecef',
+    borderColor: '#ffd4db',
   },
 });

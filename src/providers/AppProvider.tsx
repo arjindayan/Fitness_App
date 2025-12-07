@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider } from '../state/SessionProvider';
+import { SplashOverlay } from '@/components/SplashOverlay';
 
 type GlobalErrorHandler = (error: any, isFatal?: boolean) => void;
 
@@ -29,6 +30,7 @@ type Props = {
 
 export function AppProvider({ children }: Props) {
   const [queryClient] = useState(() => createQueryClient());
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     const defaultHandler = ErrorUtils.getGlobalHandler?.();
@@ -51,7 +53,10 @@ export function AppProvider({ children }: Props) {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <SessionProvider>
-          <QueryClientProvider client={queryClient}>{children ?? <Slot />}</QueryClientProvider>
+          <QueryClientProvider client={queryClient}>
+            {children ?? <Slot />}
+            {showSplash ? <SplashOverlay onFinish={() => setShowSplash(false)} /> : null}
+          </QueryClientProvider>
         </SessionProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

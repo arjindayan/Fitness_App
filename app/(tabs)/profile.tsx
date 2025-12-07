@@ -2,8 +2,10 @@ import { useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { signOut } from '@/services/authService';
 import { useSessionContext } from '@/state/SessionProvider';
+import { theme } from '@/theme';
 
 export default function ProfileScreen() {
   const { profile } = useSessionContext();
@@ -21,12 +23,15 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <PastelBackdrop />
       <View style={styles.container}>
         <Text style={styles.title}>{profile?.display_name ?? 'Profil'}</Text>
-        <Text style={styles.label}>Hedef</Text>
-        <Text style={styles.value}>{profile?.goal ?? '-'}</Text>
-        <Text style={styles.label}>Saat dilimi</Text>
-        <Text style={styles.value}>{profile?.timezone ?? '-'}</Text>
+        <View style={styles.card}>
+          <Text style={styles.label}>Hedef</Text>
+          <Text style={styles.value}>{profile?.goal ?? '-'}</Text>
+          <Text style={styles.label}>Saat dilimi</Text>
+          <Text style={styles.value}>{profile?.timezone ?? '-'}</Text>
+        </View>
 
         <View style={styles.actions}>
           <Pressable style={styles.secondaryButton} onPress={() => router.push('/(onboarding)')}>
@@ -45,54 +50,72 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#030303',
+    backgroundColor: theme.colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#030303',
     padding: 24,
-    gap: 12,
+    gap: 16,
   },
   title: {
-    color: '#f8f8f8',
+    color: theme.colors.text,
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  card: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 18,
+    padding: 18,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#9eb2db',
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 10 },
   },
   label: {
-    color: '#808499',
+    color: theme.colors.muted,
     fontSize: 13,
     textTransform: 'uppercase',
-    marginTop: 16,
+    marginTop: 8,
+    letterSpacing: 0.4,
   },
   value: {
-    color: '#f5f5f7',
+    color: theme.colors.text,
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   actions: {
-    marginTop: 32,
+    marginTop: 12,
     gap: 12,
   },
   secondaryButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1f2433',
+    borderColor: theme.colors.border,
     paddingVertical: 16,
     alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    shadowColor: '#9eb2db',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
   },
   secondaryLabel: {
-    color: '#f5f5f5',
-    fontWeight: '600',
+    color: theme.colors.text,
+    fontWeight: '700',
   },
   dangerButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#ff8c8c',
+    borderColor: theme.colors.danger,
     paddingVertical: 16,
     alignItems: 'center',
+    backgroundColor: '#ffecef',
   },
   dangerLabel: {
-    color: '#ff8c8c',
-    fontWeight: '600',
+    color: theme.colors.danger,
+    fontWeight: '700',
   },
 });

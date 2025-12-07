@@ -1,9 +1,13 @@
 import { Link } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { theme } from '@/theme';
+
 export default function NotFound() {
   return (
     <View style={styles.container}>
+      <PastelBackdrop />
       <Text style={styles.title}>Ekran bulunamadı</Text>
       <Link href="/" style={styles.link}>
         Ana sayfaya dön
@@ -17,15 +21,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#030303',
+    backgroundColor: theme.colors.background,
     gap: 12,
   },
   title: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   link: {
-    color: '#7f5dfa',
+    color: '#1a2a52',
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    fontWeight: '700',
   },
 });

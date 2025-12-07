@@ -14,8 +14,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
+import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { MOVEMENT_CATEGORIES, MOVEMENT_EQUIPMENTS } from '@/constants/movements';
 import { useCreateMovementMutation, useMovementList } from '@/services/movementService';
+import { theme } from '@/theme';
 
 const movementSchema = z.object({
   name: z.string().min(2, 'İsim gir'),
@@ -73,12 +75,13 @@ export default function LibraryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <PastelBackdrop />
       <View style={styles.container}>
         <Text style={styles.title}>Hareket kütüphanesi</Text>
         <TextInput
           style={styles.search}
           placeholder="Hareket ara"
-          placeholderTextColor="#5b6170"
+          placeholderTextColor={theme.colors.subtle}
           value={search}
           onChangeText={setSearch}
         />
@@ -89,6 +92,7 @@ export default function LibraryScreen() {
             horizontal
             keyExtractor={(item) => item.id ?? 'all'}
             contentContainerStyle={{ gap: 8 }}
+            showsHorizontalScrollIndicator={false}
             renderItem={({ item }) => {
               const isActive = categoryId === item.id;
               return (
@@ -109,6 +113,7 @@ export default function LibraryScreen() {
             horizontal
             keyExtractor={(item) => item.value ?? 'equipment'}
             contentContainerStyle={{ gap: 8 }}
+            showsHorizontalScrollIndicator={false}
             renderItem={({ item }) => {
               const isActive = equipment === item.value;
               return (
@@ -129,7 +134,7 @@ export default function LibraryScreen() {
 
         {isLoading ? (
           <View style={styles.loader}>
-            <ActivityIndicator />
+            <ActivityIndicator color={theme.colors.text} />
           </View>
         ) : (
           <FlatList
@@ -159,7 +164,7 @@ export default function LibraryScreen() {
                   <TextInput
                     style={styles.modalInput}
                     placeholder="İsim"
-                    placeholderTextColor="#5b6170"
+                    placeholderTextColor={theme.colors.subtle}
                     value={value}
                     onChangeText={onChange}
                   />
@@ -174,7 +179,7 @@ export default function LibraryScreen() {
                   <TextInput
                     style={styles.modalInput}
                     placeholder="Kategori ID (opsiyonel)"
-                    placeholderTextColor="#5b6170"
+                    placeholderTextColor={theme.colors.subtle}
                     value={value}
                     onChangeText={onChange}
                   />
@@ -187,7 +192,7 @@ export default function LibraryScreen() {
                   <TextInput
                     style={styles.modalInput}
                     placeholder="Ekipman (barbell/dumbbell...)"
-                    placeholderTextColor="#5b6170"
+                    placeholderTextColor={theme.colors.subtle}
                     value={value}
                     onChangeText={onChange}
                   />
@@ -200,7 +205,7 @@ export default function LibraryScreen() {
                   <TextInput
                     style={styles.modalInput}
                     placeholder="Seviye (beginner/intermediate/advanced)"
-                    placeholderTextColor="#5b6170"
+                    placeholderTextColor={theme.colors.subtle}
                     value={value}
                     onChangeText={onChange}
                   />
@@ -213,7 +218,7 @@ export default function LibraryScreen() {
                   <TextInput
                     style={[styles.modalInput, styles.modalMultiline]}
                     placeholder="Notlar"
-                    placeholderTextColor="#5b6170"
+                    placeholderTextColor={theme.colors.subtle}
                     value={value}
                     onChangeText={onChange}
                     multiline
@@ -242,59 +247,63 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#030303',
+    backgroundColor: theme.colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#030303',
     padding: 16,
+    gap: 12,
   },
   title: {
-    color: '#f8f8f8',
+    color: theme.colors.text,
     fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontWeight: '800',
   },
   search: {
-    backgroundColor: '#11121a',
-    borderRadius: 12,
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: 14,
     padding: 12,
-    color: '#fff',
-    marginBottom: 12,
+    color: theme.colors.text,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   filterRow: {
-    marginBottom: 12,
+    marginBottom: 4,
   },
   filterChip: {
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1f2433',
+    borderColor: theme.colors.border,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.surface,
   },
   filterChipActive: {
-    backgroundColor: '#7f5dfa',
-    borderColor: '#7f5dfa',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   filterText: {
-    color: '#9ea3b5',
+    color: theme.colors.muted,
   },
   filterTextActive: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#1a2a52',
+    fontWeight: '700',
   },
   addButton: {
-    marginBottom: 16,
-    backgroundColor: '#14141a',
+    backgroundColor: theme.colors.surface,
     padding: 14,
-    borderRadius: 12,
-    borderColor: '#2b2b33',
+    borderRadius: 14,
+    borderColor: theme.colors.border,
     borderWidth: 1,
     alignItems: 'center',
+    shadowColor: '#a2b4d8',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 8 },
   },
   addButtonText: {
-    color: '#fefefe',
-    fontWeight: '600',
+    color: theme.colors.text,
+    fontWeight: '700',
   },
   loader: {
     flex: 1,
@@ -302,50 +311,61 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    backgroundColor: '#0b0f18',
-    borderRadius: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#171c2d',
+    borderColor: theme.colors.border,
+    shadowColor: '#a2b4d8',
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 10 },
   },
   cardTitle: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   cardMeta: {
-    color: '#8f94a3',
+    color: theme.colors.muted,
     marginTop: 4,
   },
   cardNote: {
-    color: '#c5c9d6',
+    color: theme.colors.text,
     marginTop: 8,
     lineHeight: 18,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     justifyContent: 'center',
     padding: 16,
   },
   modalCard: {
-    backgroundColor: '#050505',
-    borderRadius: 16,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: 18,
     padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 6,
+    shadowColor: '#8da6d6',
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
   },
   modalTitle: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontWeight: '800',
+    marginBottom: 6,
   },
   modalInput: {
-    backgroundColor: '#11121a',
+    backgroundColor: theme.colors.inputBg,
     borderRadius: 12,
     padding: 12,
-    color: '#fff',
+    color: theme.colors.text,
     borderWidth: 1,
-    borderColor: '#1f2433',
+    borderColor: theme.colors.border,
     marginBottom: 8,
   },
   modalMultiline: {
@@ -363,20 +383,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   modalCancelText: {
-    color: '#8f94a3',
+    color: theme.colors.muted,
+    fontWeight: '700',
   },
   modalSave: {
-    backgroundColor: '#7f5dfa',
-    borderRadius: 10,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    shadowColor: '#b8c7ff',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 8 },
   },
   modalSaveText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#1a2a52',
+    fontWeight: '700',
   },
   errorText: {
-    color: '#ff8c8c',
+    color: theme.colors.danger,
     marginBottom: 8,
   },
 });
