@@ -3,15 +3,14 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { supabase } from '../lib/supabase';
 
+// Finalize any pending auth sessions (needed on iOS/Safari when returning to the app)
+WebBrowser.maybeCompleteAuthSession();
+
 const redirectTo = AuthSession.makeRedirectUri({
-  scheme: 'fitnessxs',
+  preferLocalhost: true, // Bunu ekle, bazen IP sorunlarını çözer
 });
 
-type EmailAuthPayload = {
-  email: string;
-  password: string;
-};
-
+console.log("Supabase'e gönderilen Redirect URL:", redirectTo);
 export async function signInWithEmail({ email, password }: EmailAuthPayload) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -40,48 +39,54 @@ export async function signUpWithEmail({ email, password }: EmailAuthPayload) {
   }
 }
 export async function signInWithGoogle() {
+  // 1. Google ile oturum açma işlemini başlat
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       skipBrowserRedirect: true,
-      redirectTo,
+      redirectTo, 
     },
   });
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
+  if (!data.url) throw new Error('Google giriş bağlantısı oluşturulamadı.');
 
-  if (!data.url) {
-    throw new Error('Google giriş bağlantısı oluşturulamadı.');
-  }
-
-  // DEĞİŞİKLİK BURADA: startAsync yerine openAuthSessionAsync
+  // 2. Tarayıcıyı aç
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
 
   if (result.type !== 'success') {
     throw new Error('Google girişi iptal edildi.');
   }
 
-  // URL'den parametreleri ayıklamamız lazım çünkü WebBrowser sadece URL döner
-  const url = result.url;
+  // --- DEBUG İÇİN ÖNEMLİ KISIM ---
+  console.log("🟢 Dönen Tam URL:", result.url);
+  // ------------------------------
+
+  const params = extractParamsFromUrl(result.url);
   
-  // URL içindeki 'code' veya token parametrelerini alıyoruz
-  // Supabase genellikle URL'in query string'ine (veya hash'ine) parametre ekler
-  // Basit bir yöntemle parametreleri alalım:
-  const params = extractParamsFromUrl(url);
+  // --- DEBUG İÇİN ÖNEMLİ KISIM ---
+  console.log("🟢 Ayrıştırılan Parametreler:", params);
+  // ------------------------------
 
-  if (!params || !params.code) { // Supabase 'code' ile dönüyor genellikle
-     // Bazen refresh_token ve access_token hash (#) içinde gelebilir, kontrol etmek gerek
-     // Ancak OAuth flow (PKCE) kullanıyorsan 'code' döner.
-     throw new Error('Giriş başarılı ancak oturum kodu alınamadı.');
+  // SENARYO A: Supabase 'code' (PKCE Flow) döndürdüyse
+  if (params.code) {
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(params.code);
+    if (exchangeError) throw exchangeError;
+    return;
   }
 
-  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(params.code);
-
-  if (exchangeError) {
-    throw exchangeError;
+  // SENARYO B: Supabase direkt 'access_token' (Implicit Flow) döndürdüyse
+  if (params.access_token && params.refresh_token) {
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: params.access_token,
+      refresh_token: params.refresh_token,
+    });
+    if (sessionError) throw sessionError;
+    return;
   }
+
+  // İkisi de yoksa hata fırlat
+  throw new Error('Giriş başarılı ancak URL içinde code veya token bulunamadı.');
 }
 
 // 3. YARDIMCI FONKSİYON (URL parsing için)
