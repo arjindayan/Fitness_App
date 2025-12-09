@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, parseISO } from 'date-fns';
 
 import { supabase } from '@/lib/supabase';
 import { ScheduleInstance, WorkoutExercise } from '@/types/program';
@@ -166,5 +166,67 @@ export function useWorkoutExercises(workoutId: string | null) {
     queryKey: [...WORKOUT_EXERCISES_KEY, workoutId],
     queryFn: () => fetchWorkoutExercises(workoutId!),
     enabled: !!workoutId,
+  });
+}
+
+// Antrenmanı atla ve gelecek antrenmanları kaydır
+type SkipAndShiftPayload = {
+  scheduleId: string;
+  programId: string;
+  currentDate: string;
+};
+
+export async function skipAndShiftWorkouts({ scheduleId, programId, currentDate }: SkipAndShiftPayload) {
+  // 1. Atlanan antrenmanı "skipped" olarak işaretle
+  const { error: skipError } = await supabase
+    .from('schedule_instances')
+    .update({ status: 'skipped' })
+    .eq('id', scheduleId);
+
+  if (skipError) {
+    throw skipError;
+  }
+
+  // 2. Bu programa ait bugünden sonraki tüm "pending" antrenmanları al
+  const { data: futureWorkouts, error: fetchError } = await supabase
+    .from('schedule_instances')
+    .select('id, scheduled_date')
+    .eq('program_id', programId)
+    .eq('status', 'pending')
+    .gte('scheduled_date', currentDate)
+    .order('scheduled_date', { ascending: true });
+
+  if (fetchError) {
+    throw fetchError;
+  }
+
+  // 3. Her bir antrenmanı bir gün ileri kaydır
+  for (const workout of futureWorkouts ?? []) {
+    const currentScheduledDate = parseISO(workout.scheduled_date);
+    const newDate = format(addDays(currentScheduledDate, 1), 'yyyy-MM-dd');
+
+    const { error: updateError } = await supabase
+      .from('schedule_instances')
+      .update({ 
+        scheduled_date: newDate,
+        auto_shifted_from: workout.scheduled_date // Orijinal tarihi kaydet
+      })
+      .eq('id', workout.id);
+
+    if (updateError) {
+      console.error('Antrenman kaydırma hatası:', updateError);
+    }
+  }
+}
+
+export function useSkipAndShiftWorkouts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: skipAndShiftWorkouts,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TODAY_PLAN_KEY });
+      queryClient.invalidateQueries({ queryKey: WORKOUT_HISTORY_KEY });
+    },
   });
 }

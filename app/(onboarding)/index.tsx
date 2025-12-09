@@ -1,89 +1,95 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
+import {
+  Alert,
+  Animated,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  Dimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { z } from 'zod';
 
 import { PastelBackdrop } from '@/components/PastelBackdrop';
-import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { signOut } from '@/services/authService';
 import { upsertProfile } from '@/services/profileService';
 import { useSessionContext } from '@/state/SessionProvider';
-import { TrainingDay } from '@/types/profile';
 import { getDefaultTimezone } from '@/utils/timezone';
 import { theme } from '@/theme';
 
-const trainingDayEnum = z.enum([
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-] as [TrainingDay, ...TrainingDay[]]);
+const { width } = Dimensions.get('window');
 
-const schema = z.object({
-  displayName: z.string().min(2, 'İsmin en az 2 karakter olmalı'),
-  goal: z.string().min(2, 'Hedefini yaz'),
-  goalDescription: z.string().optional(),
-  timezone: z.string().min(2, 'Saat dilimini gir'),
-  trainingDays: z.array(trainingDayEnum).min(1, 'En az 1 gün seç'),
-});
+type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
 
-type FormValues = z.infer<typeof schema>;
+const FITNESS_LEVELS: { key: FitnessLevel; label: string; emoji: string; description: string }[] = [
+  { key: 'beginner', label: 'Başlangıç', emoji: '🌱', description: '0-6 ay deneyim' },
+  { key: 'intermediate', label: 'Orta', emoji: '💪', description: '6 ay - 2 yıl deneyim' },
+  { key: 'advanced', label: 'İleri', emoji: '🔥', description: '2+ yıl deneyim' },
+];
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { session, profile, refreshProfile } = useSessionContext();
+  const { session, refreshProfile } = useSessionContext();
+  
+  const [step, setStep] = useState(1);
+  const [displayName, setDisplayName] = useState('');
+  const [fitnessLevel, setFitnessLevel] = useState<FitnessLevel | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  const defaultValues = useMemo<FormValues>(
-    () => ({
-      displayName: profile?.display_name ?? '',
-      goal: profile?.goal ?? '',
-      goalDescription: profile?.goal_description ?? '',
-      timezone: profile?.timezone ?? getDefaultTimezone(),
-      trainingDays: profile?.training_days ?? [],
-    }),
-    [profile]
-  );
+  // Animasyonlar
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const successScale = useRef(new Animated.Value(0)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
 
-  const {
-    control,
-    handleSubmit,
-    watch,
-    setValue,
-    reset,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues,
-  });
-
-  useEffect(() => {
-    reset(defaultValues);
-  }, [defaultValues, reset]);
-
-  const selectedDays = watch('trainingDays');
-
-  const toggleDay = (day: TrainingDay) => {
-    setValue(
-      'trainingDays',
-      selectedDays.includes(day) ? selectedDays.filter((d) => d !== day) : [...selectedDays, day]
-    );
+  const animateToNextStep = (nextStep: number) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: -50,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setStep(nextStep);
+      slideAnim.setValue(50);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
   };
 
-  const onSubmit = handleSubmit(async (values) => {
-    if (!session?.user) {
-      Alert.alert('Oturum bulunamadı', 'Lütfen tekrar giriş yap.');
+  const handleNameSubmit = () => {
+    if (displayName.trim().length < 2) {
+      Alert.alert('Hata', 'İsmin en az 2 karakter olmalı');
       return;
     }
+    animateToNextStep(2);
+  };
 
-    if (!session.user.email) {
-      Alert.alert('Email bulunamadı', 'Hesabında kayıtlı bir email adresi yok.');
+  const handleLevelSelect = (level: FitnessLevel) => {
+    setFitnessLevel(level);
+  };
+
+  const handleComplete = async () => {
+    if (!session?.user || !fitnessLevel) {
+      Alert.alert('Hata', 'Lütfen tüm alanları doldur');
       return;
     }
 
@@ -91,139 +97,178 @@ export default function OnboardingScreen() {
 
     try {
       await upsertProfile(session.user.id, {
-        displayName: values.displayName.trim(),
-        email: session.user.email,
-        goal: values.goal.trim(),
-        goalDescription: values.goalDescription?.trim(),
-        timezone: values.timezone,
-        trainingDays: values.trainingDays,
+        displayName: displayName.trim(),
+        email: session.user.email ?? '',
+        goal: fitnessLevel, // fitness level'ı goal olarak kullan
+        goalDescription: FITNESS_LEVELS.find(l => l.key === fitnessLevel)?.description ?? '',
+        timezone: getDefaultTimezone(),
+        trainingDays: [], // Boş başlat, sonra program eklerken seçilecek
         onboardingComplete: true,
       });
 
       await refreshProfile();
-      router.replace('/(tabs)/today');
+
+      // Başarı animasyonu
+      setShowSuccess(true);
+      Animated.parallel([
+        Animated.spring(successScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 50,
+          useNativeDriver: true,
+        }),
+        Animated.timing(successOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setTimeout(() => {
+          router.replace('/(tabs)/today');
+        }, 1500);
+      });
     } catch (error) {
       console.error(error);
       Alert.alert('Profili kaydederken hata oluştu', 'Tekrar deneyin.');
-    } finally {
       setIsSubmitting(false);
     }
-  });
+  };
+
+  if (showSuccess) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <PastelBackdrop />
+        <View style={styles.successContainer}>
+          <Animated.View
+            style={[
+              styles.successContent,
+              {
+                opacity: successOpacity,
+                transform: [{ scale: successScale }],
+              },
+            ]}
+          >
+            <Text style={styles.successEmoji}>🎉</Text>
+            <Text style={styles.successTitle}>Hoş geldin, {displayName}!</Text>
+            <Text style={styles.successSubtitle}>Antrenman yolculuğun başlıyor...</Text>
+          </Animated.View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <PastelBackdrop />
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Hedeflerini tanımla</Text>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: step === 1 ? '50%' : '100%' }]} />
+          </View>
           <Pressable
             onPress={async () => {
               await signOut();
               router.replace('/(auth)');
             }}
           >
-            <Text style={styles.exitText}>Çıkış yap</Text>
+            <Text style={styles.exitText}>Çıkış</Text>
           </Pressable>
         </View>
-        <Text style={styles.subtitle}>Programlarını sana göre optimize edelim.</Text>
 
-        <View style={styles.form}>
-          <Controller
-            control={control}
-            name="displayName"
-            render={({ field: { onBlur, onChange, value } }) => (
-              <View>
+        {/* Content */}
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateX: slideAnim }],
+            },
+          ]}
+        >
+          {step === 1 ? (
+            <>
+              <Text style={styles.stepLabel}>Adım 1/2</Text>
+              <Text style={styles.title}>Sana nasıl hitap edelim?</Text>
+              <Text style={styles.subtitle}>İsmini veya takma adını yaz</Text>
+
+              <View style={styles.inputCard}>
                 <TextInput
-                  style={styles.input}
+                  style={styles.nameInput}
                   placeholder="Adın"
                   placeholderTextColor={theme.colors.subtle}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  autoFocus
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  onSubmitEditing={handleNameSubmit}
                 />
-                {errors.displayName ? <Text style={styles.errorText}>{errors.displayName.message}</Text> : null}
               </View>
-            )}
-          />
 
-          <Controller
-            control={control}
-            name="goal"
-            render={({ field: { onBlur, onChange, value } }) => (
-              <View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Hedef (örn. güçlenmek, yağ yakmak)"
-                  placeholderTextColor={theme.colors.subtle}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                />
-                {errors.goal ? <Text style={styles.errorText}>{errors.goal.message}</Text> : null}
-              </View>
-            )}
-          />
+              <Pressable
+                style={[styles.primaryButton, displayName.trim().length < 2 && styles.primaryButtonDisabled]}
+                onPress={handleNameSubmit}
+                disabled={displayName.trim().length < 2}
+              >
+                <Text style={styles.primaryLabel}>Devam et</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.stepLabel}>Adım 2/2</Text>
+              <Text style={styles.title}>Fitness seviyen ne?</Text>
+              <Text style={styles.subtitle}>Sana uygun programlar önermemize yardımcı olur</Text>
 
-          <Controller
-            control={control}
-            name="goalDescription"
-            render={({ field: { onBlur, onChange, value } }) => (
-              <TextInput
-                style={[styles.input, styles.multiline]}
-                placeholder="Kısa açıklama (opsiyonel)"
-                placeholderTextColor={theme.colors.subtle}
-                multiline
-                numberOfLines={3}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="timezone"
-            render={({ field: { onBlur, onChange, value } }) => (
-              <View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Saat dilimi (örn. Europe/Istanbul)"
-                  placeholderTextColor={theme.colors.subtle}
-                  autoCapitalize="none"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                />
-                {errors.timezone ? <Text style={styles.errorText}>{errors.timezone.message}</Text> : null}
-              </View>
-            )}
-          />
-
-          <View>
-            <Text style={styles.label}>Haftalık idman günlerin</Text>
-            <View style={styles.daysWrap}>
-              {TRAINING_DAYS.map((day) => {
-                const isActive = selectedDays.includes(day.key);
-                return (
+              <View style={styles.levelsContainer}>
+                {FITNESS_LEVELS.map((level) => (
                   <Pressable
-                    key={day.key}
-                    onPress={() => toggleDay(day.key)}
-                    style={[styles.dayChip, isActive && styles.dayChipActive]}
+                    key={level.key}
+                    style={[
+                      styles.levelCard,
+                      fitnessLevel === level.key && styles.levelCardActive,
+                    ]}
+                    onPress={() => handleLevelSelect(level.key)}
                   >
-                    <Text style={[styles.dayLabel, isActive && styles.dayLabelActive]}>{day.label}</Text>
+                    <Text style={styles.levelEmoji}>{level.emoji}</Text>
+                    <View style={styles.levelInfo}>
+                      <Text style={[
+                        styles.levelLabel,
+                        fitnessLevel === level.key && styles.levelLabelActive,
+                      ]}>
+                        {level.label}
+                      </Text>
+                      <Text style={styles.levelDescription}>{level.description}</Text>
+                    </View>
+                    {fitnessLevel === level.key && (
+                      <Text style={styles.checkmark}>✓</Text>
+                    )}
                   </Pressable>
-                );
-              })}
-            </View>
-            {errors.trainingDays ? <Text style={styles.errorText}>{errors.trainingDays.message}</Text> : null}
-          </View>
-        </View>
+                ))}
+              </View>
 
-        <Pressable style={styles.primaryButton} onPress={onSubmit} disabled={isSubmitting}>
-          <Text style={styles.primaryLabel}>{isSubmitting ? 'Kaydediliyor...' : 'Devam et'}</Text>
-        </Pressable>
-      </ScrollView>
+              <View style={styles.buttonRow}>
+                <Pressable style={styles.backButton} onPress={() => animateToNextStep(1)}>
+                  <Text style={styles.backLabel}>← Geri</Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.primaryButton,
+                    styles.completeButton,
+                    (!fitnessLevel || isSubmitting) && styles.primaryButtonDisabled,
+                  ]}
+                  onPress={handleComplete}
+                  disabled={!fitnessLevel || isSubmitting}
+                >
+                  <Text style={styles.primaryLabel}>
+                    {isSubmitting ? 'Hazırlanıyor...' : 'Başlayalım! 🚀'}
+                  </Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+        </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -234,102 +279,180 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   container: {
+    flex: 1,
     padding: 24,
-    gap: 24,
-    paddingBottom: 40,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 40,
+  },
+  progressBar: {
+    flex: 1,
+    height: 6,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.primary,
+    borderRadius: 3,
+  },
+  exitText: {
+    color: theme.colors.muted,
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
+    gap: 16,
+  },
+  stepLabel: {
+    color: theme.colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
   },
   title: {
     color: theme.colors.text,
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    letterSpacing: -0.5,
   },
   subtitle: {
     color: theme.colors.muted,
     fontSize: 16,
-    marginBottom: 12,
+    marginBottom: 20,
   },
-  form: {
-    gap: 16,
+  inputCard: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.lg,
-    padding: 18,
+    borderRadius: 20,
+    padding: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
     shadowColor: '#a2b4d8',
     shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowRadius: 20,
     shadowOffset: { width: 0, height: 12 },
   },
-  label: {
-    color: theme.colors.text,
-    marginBottom: 8,
-    fontWeight: '700',
-  },
-  input: {
+  nameInput: {
     backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.radii.md,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: '600',
     borderWidth: 1,
     borderColor: theme.colors.border,
-  },
-  multiline: {
-    textAlignVertical: 'top',
-  },
-  daysWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  dayChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: theme.radii.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt,
-  },
-  dayChipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  dayLabel: {
-    color: theme.colors.muted,
-    fontSize: 14,
-  },
-  dayLabelActive: {
-    color: '#1a2a52',
-    fontWeight: '700',
   },
   primaryButton: {
     backgroundColor: theme.colors.primary,
-    paddingVertical: 16,
-    borderRadius: theme.radii.md,
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: 'center',
-    marginBottom: 12,
+    marginTop: 20,
     shadowColor: '#b8c7ff',
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 10 },
+  },
+  primaryButtonDisabled: {
+    opacity: 0.5,
+  },
+  completeButton: {
+    flex: 1,
   },
   primaryLabel: {
     color: '#1a2a52',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
-  exitText: {
-    color: theme.colors.danger,
+  levelsContainer: {
+    gap: 12,
+  },
+  levelCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    gap: 16,
+    shadowColor: '#a2b4d8',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  levelCardActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: 'rgba(184, 199, 255, 0.15)',
+  },
+  levelEmoji: {
+    fontSize: 36,
+  },
+  levelInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  levelLabel: {
+    color: theme.colors.text,
+    fontSize: 18,
     fontWeight: '700',
   },
-  errorText: {
-    color: theme.colors.danger,
-    fontSize: 13,
-    marginTop: 4,
+  levelLabelActive: {
+    color: theme.colors.primary,
+  },
+  levelDescription: {
+    color: theme.colors.muted,
+    fontSize: 14,
+  },
+  checkmark: {
+    color: theme.colors.primary,
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  backButton: {
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  backLabel: {
+    color: theme.colors.text,
+    fontWeight: '600',
+  },
+  // Success screen
+  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  successContent: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  successEmoji: {
+    fontSize: 80,
+  },
+  successTitle: {
+    color: theme.colors.text,
+    fontSize: 28,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  successSubtitle: {
+    color: theme.colors.muted,
+    fontSize: 18,
+    textAlign: 'center',
   },
 });

@@ -28,6 +28,14 @@ export type WorkoutExercise = {
   rest_seconds?: number | null;
   tempo?: string | null;
   note?: string | null;
+  order_index?: number;
+  movements?: {
+    id: string;
+    name: string;
+    image_url?: string | null;
+    equipment?: string | null;
+    difficulty?: string | null;
+  } | null;
 };
 
 export type TrainingPlan = {

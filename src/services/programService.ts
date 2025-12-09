@@ -108,7 +108,10 @@ export async function fetchProgramDetail(programId: string): Promise<ProgramDeta
         *,
         workout_blocks(
           *,
-          workout_exercises(*)
+          workout_exercises(
+            *,
+            movements(id, name, image_url, equipment, difficulty)
+          )
         )
       )
     `
@@ -164,7 +167,7 @@ export async function createProgramWithWorkouts(payload: ProgramInput) {
   const workoutPayload = payload.workouts.map((workout, index) => ({
     program_id: program.id,
     day_of_week: toDayIndex(workout.day),
-    title: workout.title || `${workout.day} antrenmanı`,
+    title: payload.title, // Program adını kullan
     order_index: index,
     notes: null,
   }));

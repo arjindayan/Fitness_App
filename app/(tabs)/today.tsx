@@ -1,6 +1,7 @@
+import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MonthlyCalendarModal } from '@/components/MonthlyCalendarModal';
@@ -9,7 +10,7 @@ import { WeeklyStreak } from '@/components/WeeklyStreak';
 import { WorkoutLogModal } from '@/components/WorkoutLogModal';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { fromDayIndex } from '@/services/programService';
-import { useTodayPlan, useUpdateScheduleStatus, useWeeklyWorkoutHistory } from '@/services/scheduleService';
+import { useTodayPlan, useUpdateScheduleStatus, useWeeklyWorkoutHistory, useSkipAndShiftWorkouts } from '@/services/scheduleService';
 import { useSessionContext } from '@/state/SessionProvider';
 import { fetchTodayStepsWithPermission } from '@/services/healthService';
 import { ScheduleInstance } from '@/types/program';
@@ -21,6 +22,7 @@ export default function TodayScreen() {
   const { data, isLoading } = useTodayPlan();
   const { data: weeklyHistory = [] } = useWeeklyWorkoutHistory();
   const updateStatus = useUpdateScheduleStatus();
+  const skipAndShift = useSkipAndShiftWorkouts();
   const [steps, setSteps] = useState<number | null>(null);
   const [stepsError, setStepsError] = useState<string | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
@@ -38,6 +40,50 @@ export default function TodayScreen() {
     }
     setLogModalVisible(false);
     setSelectedWorkout(null);
+  };
+
+  const handleSkipWorkout = (item: ScheduleInstance) => {
+    Alert.alert(
+      'Antrenmanı Atla',
+      'Bu antrenmanı atlamak istediğine emin misin?',
+      [
+        {
+          text: 'Vazgeç',
+          style: 'cancel',
+        },
+        {
+          text: 'Sadece Atla',
+          onPress: () => {
+            updateStatus.mutate({ scheduleId: item.id, status: 'skipped' });
+          },
+        },
+        {
+          text: 'Atla ve Kaydır',
+          style: 'default',
+          onPress: () => {
+            const today = format(new Date(), 'yyyy-MM-dd');
+            skipAndShift.mutate(
+              {
+                scheduleId: item.id,
+                programId: item.program_id,
+                currentDate: today,
+              },
+              {
+                onSuccess: () => {
+                  Alert.alert(
+                    'Antrenmanlar Kaydırıldı',
+                    'Bu antrenman atlandı ve gelecek antrenmanların bir gün ileri kaydırıldı.'
+                  );
+                },
+                onError: () => {
+                  Alert.alert('Hata', 'Antrenmanlar kaydırılamadı.');
+                },
+              }
+            );
+          },
+        },
+      ]
+    );
   };
 
   useEffect(() => {
@@ -75,14 +121,14 @@ export default function TodayScreen() {
 
     return (
       <View style={styles.listContent}>
-        {data.map((item) => (
+        {data.map((item) => {
+          const dayLabel = TRAINING_DAYS.find((day) => day.key === fromDayIndex(item.program_workouts?.day_of_week ?? 0))?.label;
+          return (
           <View key={item.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{item.program_workouts?.title ?? 'Antrenman'}</Text>
+            <Text style={styles.cardTitle}>{item.programs?.title ?? 'Antrenman'}</Text>
             <Text style={styles.cardMeta}>
-              {TRAINING_DAYS.find((day) => day.key === fromDayIndex(item.program_workouts?.day_of_week ?? 0))?.label ??
-                'Belirsiz gün'}
+              {dayLabel} {item.status === 'done' ? '• Tamamlandı ✓' : '• Bekliyor'}
             </Text>
-            <Text style={styles.cardMeta}>Durum: {item.status === 'done' ? 'Tamamlandı' : 'Bekliyor'}</Text>
             <View style={styles.cardActions}>
               <Pressable
                 style={[styles.statusButton, styles.doneButton]}
@@ -92,13 +138,14 @@ export default function TodayScreen() {
               </Pressable>
               <Pressable
                 style={[styles.statusButton, styles.skipButton]}
-                onPress={() => updateStatus.mutate({ scheduleId: item.id, status: 'skipped' })}
+                onPress={() => handleSkipWorkout(item)}
               >
                 <Text style={styles.statusLabel}>Atla</Text>
               </Pressable>
             </View>
           </View>
-        ))}
+        );
+        })}
       </View>
     );
   };
@@ -247,7 +294,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    gap: 8,
+    gap: 6,
     shadowColor: '#a2b4d8',
     shadowOpacity: 0.4,
     shadowRadius: 16,

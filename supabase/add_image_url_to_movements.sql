@@ -5,7 +5,7 @@ ADD COLUMN IF NOT EXISTS image_url TEXT;
 -- Update some popular exercises with placeholder images (from Unsplash - free to use)
 -- You can replace these with actual exercise images later
 
--- Chest exercises
+-- Chest exercisesr
 UPDATE public.movements SET image_url = 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400' WHERE name = 'Bench Press (Barbell)';
 UPDATE public.movements SET image_url = 'https://images.unsplash.com/photo-1598268030450-7a476f602b5b?w=400' WHERE name = 'Dumbbell Bench Press';
 UPDATE public.movements SET image_url = 'https://images.unsplash.com/photo-1598266663439-2056e6900339?w=400' WHERE name = 'Push-up';

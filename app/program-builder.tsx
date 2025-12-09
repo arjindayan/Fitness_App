@@ -173,10 +173,11 @@ export default function ProgramBuilderScreen() {
             ) : (
               trainingDays.map((day) => {
                 const workout = workouts.find((w) => w.day === day);
+                const dayLabel = TRAINING_DAYS.find((d) => d.key === day)?.label ?? day;
                 return (
                   <View key={day} style={styles.workoutBlock}>
                     <View style={styles.workoutHeader}>
-                      <Text style={styles.workoutTitle}>{TRAINING_DAYS.find((d) => d.key === day)?.label}</Text>
+                      <Text style={styles.workoutDayText}>{dayLabel}</Text>
                       <Pressable style={styles.addMovementButton} onPress={() => handleAddExercise(day)}>
                         <Text style={styles.addMovementLabel}>Hareket ekle</Text>
                       </Pressable>
@@ -442,14 +443,19 @@ const styles = StyleSheet.create({
   },
   workoutBlock: {
     marginTop: 12,
-    gap: 8,
+    gap: 10,
+    backgroundColor: theme.colors.surfaceAlt,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   workoutHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  workoutTitle: {
+  workoutDayText: {
     color: theme.colors.text,
     fontSize: 18,
     fontWeight: '700',

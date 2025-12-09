@@ -4,16 +4,20 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TRAINING_DAYS } from '@/constants/trainingDays';
+import { fromDayIndex } from '@/services/programService';
 
 import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { useAddExerciseMutation, useProgramDetail } from '@/services/programService';
@@ -101,21 +105,32 @@ export default function ProgramDetailScreen() {
           </Pressable>
         </View>
 
-        <FlatList
-          data={workouts}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ gap: 14, paddingBottom: 120 }}
-          renderItem={({ item }) => {
+        <ScrollView contentContainerStyle={{ gap: 14, paddingBottom: 120 }}>
+          {/* Program Bilgisi */}
+          <View style={styles.infoCard}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Fokus</Text>
+              <Text style={styles.infoValue}>{data.focus || 'Belirtilmedi'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Antrenman Günleri</Text>
+              <Text style={styles.infoValue}>{workouts.length} gün</Text>
+            </View>
+          </View>
+
+          {/* Her Gün İçin Antrenman Kartı */}
+          {workouts.map((item) => {
             const exercises = (item.workout_blocks?.flatMap((block) => block.workout_exercises) ?? []).sort(
               (a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)
             );
+            const dayLabel = TRAINING_DAYS.find((d) => d.key === fromDayIndex(item.day_of_week))?.label ?? 'Gün';
 
             return (
-              <View style={styles.card}>
+              <View key={item.id} style={styles.card}>
                 <View style={styles.cardHeader}>
                   <View>
-                    <Text style={styles.cardTitle}>{item.title}</Text>
-                    <Text style={styles.cardMeta}>Gün sırası: {item.order_index ?? 0}</Text>
+                    <Text style={styles.dayLabel}>{dayLabel}</Text>
+                    <Text style={styles.cardMeta}>{exercises.length} hareket</Text>
                   </View>
                   <Pressable
                     style={styles.addButton}
@@ -124,34 +139,62 @@ export default function ProgramDetailScreen() {
                       setSelectedMovement(null);
                     }}
                   >
-                    <Text style={styles.addButtonText}>Hareket ekle</Text>
+                    <Text style={styles.addButtonText}>+ Hareket</Text>
                   </Pressable>
                 </View>
 
                 {exercises.length === 0 ? (
-                  <Text style={styles.muted}>Henüz hareket yok</Text>
+                  <Text style={styles.muted}>Henüz hareket eklenmedi</Text>
                 ) : (
-                  exercises.map((exercise, idx) => (
-                    <View key={`${exercise.id}-${idx}`} style={styles.exerciseRow}>
-                      <Text style={styles.exerciseName}>{exercise.reps} tekrar • {exercise.sets} set</Text>
-                      <Text style={styles.exerciseMeta}>
-                        {exercise.rest_seconds ? `Dinlenme ${exercise.rest_seconds}s` : 'Dinlenme belirtilmedi'}
-                        {exercise.note ? ` • ${exercise.note}` : ''}
-                      </Text>
-                    </View>
-                  ))
+                  <View style={styles.exerciseList}>
+                    {exercises.map((exercise, idx) => (
+                      <View key={`${exercise.id}-${idx}`} style={styles.exerciseRow}>
+                        {exercise.movements?.image_url ? (
+                          <Image source={{ uri: exercise.movements.image_url }} style={styles.exerciseImage} />
+                        ) : (
+                          <View style={styles.exerciseImagePlaceholder}>
+                            <Text style={styles.exerciseImagePlaceholderText}>💪</Text>
+                          </View>
+                        )}
+                        <View style={styles.exerciseInfo}>
+                          <Text style={styles.exerciseName}>
+                            {exercise.movements?.name ?? 'Bilinmeyen Hareket'}
+                          </Text>
+                          <Text style={styles.exerciseMeta}>
+                            {exercise.sets} set × {exercise.reps} tekrar
+                            {exercise.rest_seconds ? ` • ${exercise.rest_seconds}s dinlenme` : ''}
+                          </Text>
+                          {exercise.movements?.equipment && (
+                            <Text style={styles.exerciseEquipment}>{exercise.movements.equipment}</Text>
+                          )}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
                 )}
               </View>
             );
-          }}
-        />
+          })}
+        </ScrollView>
 
         <Modal visible={Boolean(selectedWorkoutId)} animationType="slide">
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-            <SafeAreaView style={styles.modalSafeArea}>
-              <PastelBackdrop />
+          <SafeAreaView style={styles.modalSafeArea} edges={['top', 'bottom', 'left', 'right']}>
+            <PastelBackdrop />
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
               <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Hareket seç</Text>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Hareket seç</Text>
+                  <Pressable
+                    style={styles.modalCloseButton}
+                    onPress={() => {
+                      setSelectedWorkoutId(null);
+                      setSelectedMovement(null);
+                      reset();
+                    }}
+                  >
+                    <Text style={styles.modalCloseText}>✕</Text>
+                  </Pressable>
+                </View>
                 <TextInput
                   style={styles.search}
                   placeholder="Ara"
@@ -242,19 +285,9 @@ export default function ProgramDetailScreen() {
                   </View>
                 ) : null}
 
-                <Pressable
-                  style={[styles.saveButton, { backgroundColor: theme.colors.surfaceAlt, marginTop: 12 }]}
-                  onPress={() => {
-                    setSelectedWorkoutId(null);
-                    setSelectedMovement(null);
-                    reset();
-                  }}
-                >
-                  <Text style={[styles.saveButtonText, { color: theme.colors.text }]}>Kapat</Text>
-                </Pressable>
               </View>
-            </SafeAreaView>
-          </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
         </Modal>
       </View>
     </SafeAreaView>
@@ -274,15 +307,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   title: {
     color: theme.colors.text,
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
+    flex: 1,
   },
   backButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: theme.radii.pill,
     borderWidth: 1,
@@ -297,13 +331,34 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: '600',
   },
-  card: {
+  infoCard: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.lg,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    gap: 8,
+    gap: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoLabel: {
+    color: theme.colors.muted,
+    fontWeight: '600',
+  },
+  infoValue: {
+    color: theme.colors.text,
+    fontWeight: '700',
+  },
+  card: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 12,
     shadowColor: '#a2b4d8',
     shadowOpacity: 0.35,
     shadowRadius: 14,
@@ -314,47 +369,83 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  cardTitle: {
+  dayLabel: {
     color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
   },
   cardMeta: {
     color: theme.colors.muted,
+    marginTop: 2,
   },
   muted: {
     color: theme.colors.muted,
+    textAlign: 'center',
+    paddingVertical: 20,
   },
   addButton: {
-    backgroundColor: theme.colors.surfaceAlt,
+    backgroundColor: theme.colors.primary,
     borderRadius: theme.radii.pill,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#9eb2db',
-    shadowOpacity: 0.2,
+    shadowColor: '#b8c7ff',
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 6 },
   },
   addButtonText: {
-    color: theme.colors.text,
-    fontWeight: '600',
+    color: '#1a2a52',
+    fontWeight: '700',
+  },
+  exerciseList: {
+    gap: 10,
   },
   exerciseRow: {
     backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.radii.md,
-    padding: 10,
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    gap: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  exerciseImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+  },
+  exerciseImagePlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  exerciseImagePlaceholderText: {
+    fontSize: 24,
+  },
+  exerciseInfo: {
+    flex: 1,
+    gap: 2,
   },
   exerciseName: {
     color: theme.colors.text,
     fontWeight: '700',
+    fontSize: 16,
   },
   exerciseMeta: {
     color: theme.colors.muted,
+    fontSize: 13,
+  },
+  exerciseEquipment: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
   },
   modalSafeArea: {
     flex: 1,
@@ -364,11 +455,31 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   modalTitle: {
     color: theme.colors.text,
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  modalCloseText: {
+    color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: '600',
   },
   search: {
     backgroundColor: theme.colors.inputBg,
