@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -31,36 +32,36 @@ export function SessionProvider({ children }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(true);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const lastLoadedUserId = useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     supabase.auth
-  .getSession()
-  .then(({ data, error }) => {
-    console.log('session?', data.session); // << burada
+      .getSession()
+      .then(({ data, error }) => {
+        if (!isMounted) {
+          return;
+        }
 
-    if (!isMounted) {
-      return;
-    }
-
-    if (error) {
-      console.error('Failed to fetch session', error);
-    } else {
-      setSession(data.session ?? null);
-    }
-  })
-  .finally(() => {
-    if (isMounted) {
-      setIsSessionLoading(false);
-    }
-  });
+        if (error) {
+          console.error('Failed to fetch session', error);
+        } else {
+          setSession(data.session ?? null);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsSessionLoading(false);
+        }
+      });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
 
       if (!nextSession) {
         setProfile(null);
+        lastLoadedUserId.current = null;
       }
     });
 
@@ -70,18 +71,19 @@ export function SessionProvider({ children }: Props) {
     };
   }, []);
 
-  const loadProfile = useCallback(async () => {
-    if (!session?.user) {
-      setProfile(null);
+  const loadProfile = useCallback(async (userId: string) => {
+    // Aynı kullanıcı için tekrar yükleme yapma
+    if (lastLoadedUserId.current === userId) {
       return;
     }
 
     setIsProfileLoading(true);
+    lastLoadedUserId.current = userId;
 
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', session.user.id)
+      .eq('id', userId)
       .maybeSingle();
 
     if (error) {
@@ -95,10 +97,11 @@ export function SessionProvider({ children }: Props) {
 
     // Eğer profil yoksa otomatik oluştur
     if (!data) {
+      const userEmail = session?.user?.email;
       const insertPayload = {
-        id: session.user.id,
-        display_name: session.user.email?.split('@')[0] ?? 'Kullanıcı',
-        mail: session.user.email ?? null,
+        id: userId,
+        display_name: userEmail?.split('@')[0] ?? 'Kullanıcı',
+        mail: userEmail ?? null,
         onboarding_complete: false,
         training_days: [],
         timezone: 'UTC',
@@ -132,11 +135,25 @@ export function SessionProvider({ children }: Props) {
     });
 
     setIsProfileLoading(false);
-  }, [session?.user]);
+  }, [session?.user?.email]);
 
+  // Session değiştiğinde profile'ı yükle
   useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+    if (session?.user?.id) {
+      loadProfile(session.user.id);
+    } else {
+      setProfile(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
+
+  // refreshProfile - mevcut kullanıcı için profile'ı yeniden yükle (force)
+  const refreshProfile = useCallback(async () => {
+    if (session?.user?.id) {
+      lastLoadedUserId.current = null; // Force reload
+      await loadProfile(session.user.id);
+    }
+  }, [session?.user?.id, loadProfile]);
 
   const value = useMemo(
     () => ({
@@ -144,9 +161,9 @@ export function SessionProvider({ children }: Props) {
       profile,
       isLoading: isSessionLoading || isProfileLoading,
       isProfileLoading,
-      refreshProfile: loadProfile,
+      refreshProfile,
     }),
-    [session, profile, isSessionLoading, isProfileLoading, loadProfile]
+    [session, profile, isSessionLoading, isProfileLoading, refreshProfile]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

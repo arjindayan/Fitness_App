@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -37,6 +38,7 @@ export default function ProgramBuilderScreen() {
   const [pickerDay, setPickerDay] = useState<TrainingDay | null>(null);
   const [selectedMovementId, setSelectedMovementId] = useState<string | null>(null);
   const [selectedMovementName, setSelectedMovementName] = useState<string>('');
+  const [selectedMovementImage, setSelectedMovementImage] = useState<string | null>(null);
 
   const movementParams = useMemo(
     () => ({
@@ -65,6 +67,7 @@ export default function ProgramBuilderScreen() {
     setPickerDay(day);
     setSelectedMovementId(null);
     setSelectedMovementName('');
+    setSelectedMovementImage(null);
   };
 
   const handleSaveExercise = handleSubmit((values) => {
@@ -75,6 +78,7 @@ export default function ProgramBuilderScreen() {
     const exercise: BuilderExercise = {
       movementId: selectedMovementId,
       movementName: selectedMovementName,
+      movementImage: selectedMovementImage,
       sets: Number(values.sets),
       reps: values.reps,
       restSeconds: values.restSeconds ? Number(values.restSeconds) : null,
@@ -85,6 +89,7 @@ export default function ProgramBuilderScreen() {
     setPickerDay(null);
     setSelectedMovementId(null);
     setSelectedMovementName('');
+    setSelectedMovementImage(null);
     resetExerciseForm();
   });
 
@@ -179,12 +184,23 @@ export default function ProgramBuilderScreen() {
 
                     {(workout?.exercises ?? []).map((exercise, index) => (
                       <View key={`${exercise.movementId}-${index}`} style={styles.exerciseCard}>
-                        <Text style={styles.exerciseTitle}>{exercise.movementName}</Text>
-                        <Text style={styles.exerciseMeta}>
-                          {exercise.sets} set x {exercise.reps} | Dinlenme {exercise.restSeconds}s
-                        </Text>
-                        <Pressable onPress={() => removeExercise(day, index)}>
-                          <Text style={styles.removeText}>Sil</Text>
+                        <View style={styles.exerciseCardContent}>
+                          {exercise.movementImage ? (
+                            <Image source={{ uri: exercise.movementImage }} style={styles.exerciseImage} />
+                          ) : (
+                            <View style={styles.exerciseImagePlaceholder}>
+                              <Text style={styles.exerciseImagePlaceholderText}>💪</Text>
+                            </View>
+                          )}
+                          <View style={styles.exerciseInfo}>
+                            <Text style={styles.exerciseTitle}>{exercise.movementName}</Text>
+                            <Text style={styles.exerciseMeta}>
+                              {exercise.sets} set x {exercise.reps} {exercise.restSeconds ? `| ${exercise.restSeconds}s dinlenme` : ''}
+                            </Text>
+                          </View>
+                        </View>
+                        <Pressable style={styles.removeButton} onPress={() => removeExercise(day, index)}>
+                          <Text style={styles.removeText}>✕</Text>
                         </Pressable>
                       </View>
                     ))}
@@ -214,14 +230,32 @@ export default function ProgramBuilderScreen() {
                   {movements?.map((movement) => (
                     <Pressable
                       key={movement.id}
-                      style={styles.movementRow}
+                      style={[
+                        styles.movementRow,
+                        selectedMovementId === movement.id && styles.movementRowSelected,
+                      ]}
                       onPress={() => {
                         setSelectedMovementId(movement.id);
                         setSelectedMovementName(movement.name);
+                        setSelectedMovementImage(movement.image_url);
                       }}
                     >
-                      <Text style={styles.movementName}>{movement.name}</Text>
-                      <Text style={styles.movementMeta}>{movement.equipment ?? 'Ekipman yok'}</Text>
+                      <View style={styles.movementRowContent}>
+                        {movement.image_url ? (
+                          <Image source={{ uri: movement.image_url }} style={styles.movementImage} />
+                        ) : (
+                          <View style={styles.movementImagePlaceholder}>
+                            <Text style={styles.movementImagePlaceholderText}>💪</Text>
+                          </View>
+                        )}
+                        <View style={styles.movementInfo}>
+                          <Text style={styles.movementName}>{movement.name}</Text>
+                          <Text style={styles.movementMeta}>{movement.equipment ?? 'Ekipman yok'}</Text>
+                        </View>
+                      </View>
+                      {selectedMovementId === movement.id && (
+                        <Text style={styles.selectedBadge}>✓</Text>
+                      )}
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -296,6 +330,7 @@ export default function ProgramBuilderScreen() {
                   setPickerDay(null);
                   setSelectedMovementId(null);
                   setSelectedMovementName('');
+                  setSelectedMovementImage(null);
                 }}
               >
                 <Text style={[styles.primaryButtonText, { color: theme.colors.text }]}>Kapat</Text>
@@ -440,18 +475,55 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    gap: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  exerciseCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  exerciseImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  exerciseImagePlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  exerciseImagePlaceholderText: {
+    fontSize: 24,
+  },
+  exerciseInfo: {
+    flex: 1,
   },
   exerciseTitle: {
     color: theme.colors.text,
     fontWeight: '700',
+    fontSize: 15,
   },
   exerciseMeta: {
     color: theme.colors.muted,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  removeButton: {
+    padding: 8,
   },
   removeText: {
     color: theme.colors.danger,
     fontWeight: '700',
+    fontSize: 16,
   },
   modalSafeArea: {
     flex: 1,
@@ -469,17 +541,59 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   movementRow: {
-    paddingVertical: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  movementRowSelected: {
+    backgroundColor: theme.colors.primarySoft,
+    borderRadius: 12,
+    marginVertical: 2,
+  },
+  movementRowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  movementImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  movementImagePlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  movementImagePlaceholderText: {
+    fontSize: 20,
+  },
+  movementInfo: {
+    flex: 1,
   },
   movementName: {
     color: theme.colors.text,
     fontWeight: '700',
+    fontSize: 15,
   },
   movementMeta: {
     color: theme.colors.muted,
     fontSize: 12,
+    marginTop: 2,
+  },
+  selectedBadge: {
+    color: theme.colors.primary,
+    fontWeight: '700',
+    fontSize: 18,
   },
   exerciseForm: {
     marginTop: 16,

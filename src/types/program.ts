@@ -44,10 +44,11 @@ export type BuilderWorkout = {
 export type BuilderExercise = {
   movementId: string;
   movementName: string;
+  movementImage?: string | null;
   sets: number;
   reps: string;
-  restSeconds?: number;
-  note?: string;
+  restSeconds?: number | null;
+  note?: string | null;
 };
 
 export type ScheduleInstance = {

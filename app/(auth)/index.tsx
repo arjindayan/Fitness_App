@@ -20,7 +20,7 @@ export default function WelcomeScreen() {
     try {
       setIsGoogleLoading(true);
       await signInWithGoogle();
-      router.replace('/');
+      // Session oluşunca app/_layout.tsx otomatik yönlendirecek
     } catch (error) {
       console.error(error);
       Alert.alert('Google girişi başarısız', 'Lütfen daha sonra tekrar deneyin.');

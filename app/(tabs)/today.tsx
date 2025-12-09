@@ -1,12 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MonthlyCalendarModal } from '@/components/MonthlyCalendarModal';
 import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { WeeklyStreak } from '@/components/WeeklyStreak';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { fromDayIndex } from '@/services/programService';
-import { useTodayPlan, useUpdateScheduleStatus } from '@/services/scheduleService';
+import { useTodayPlan, useUpdateScheduleStatus, useWeeklyWorkoutHistory } from '@/services/scheduleService';
 import { useSessionContext } from '@/state/SessionProvider';
 import { fetchTodayStepsWithPermission } from '@/services/healthService';
 import { theme } from '@/theme';
@@ -15,9 +17,11 @@ export default function TodayScreen() {
   const router = useRouter();
   const { profile } = useSessionContext();
   const { data, isLoading } = useTodayPlan();
+  const { data: weeklyHistory = [] } = useWeeklyWorkoutHistory();
   const updateStatus = useUpdateScheduleStatus();
   const [steps, setSteps] = useState<number | null>(null);
   const [stepsError, setStepsError] = useState<string | null>(null);
+  const [calendarVisible, setCalendarVisible] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -88,11 +92,19 @@ export default function TodayScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <PastelBackdrop />
-      <View style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.greeting}>Merhaba {profile?.display_name ?? 'sporsever'} ✦</Text>
           <Text style={styles.subtitle}>Bugünkü planını hazırladık.</Text>
         </View>
+
+        {/* Haftalık Streak */}
+        <WeeklyStreak 
+          workoutDays={weeklyHistory} 
+          onPress={() => setCalendarVisible(true)} 
+        />
+
+        {/* Adım Sayacı */}
         <View style={styles.stepsCard}>
           <Text style={styles.sectionTitle}>Bugünkü adımlar</Text>
           <Text style={styles.stepsValue}>
@@ -100,8 +112,16 @@ export default function TodayScreen() {
           </Text>
           {stepsError ? <Text style={styles.stepsError}>{stepsError}</Text> : null}
         </View>
+
+        {/* Bugünkü Plan */}
         {renderContent()}
-      </View>
+      </ScrollView>
+
+      {/* Aylık Takvim Modal */}
+      <MonthlyCalendarModal 
+        visible={calendarVisible} 
+        onClose={() => setCalendarVisible(false)} 
+      />
     </SafeAreaView>
   );
 }
@@ -111,10 +131,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  container: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 24,
     gap: 18,
+    paddingBottom: 100,
   },
   header: {
     gap: 6,

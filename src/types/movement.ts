@@ -18,6 +18,7 @@ export type Movement = {
   difficulty: MovementDifficulty | null;
   instructions: string | null;
   video_url: string | null;
+  image_url: string | null;
   is_custom: boolean;
   owner_id: string | null;
   created_at?: string;

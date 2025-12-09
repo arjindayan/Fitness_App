@@ -8,6 +8,7 @@ export const theme = {
     primarySoft: '#e9dcff',
     accent: '#8dd5ff',
     success: '#7ad4b5',
+    warning: '#ffc966',
     danger: '#ff9fa5',
     text: '#0f1d3d',
     muted: '#5d6a8c',

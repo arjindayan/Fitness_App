@@ -7,10 +7,8 @@ import { supabase } from '../lib/supabase';
 WebBrowser.maybeCompleteAuthSession();
 
 const redirectTo = AuthSession.makeRedirectUri({
-  preferLocalhost: true, // Bunu ekle, bazen IP sorunlarını çözer
+  preferLocalhost: true,
 });
-
-console.log("Supabase'e gönderilen Redirect URL:", redirectTo);
 export async function signInWithEmail({ email, password }: EmailAuthPayload) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -58,15 +56,7 @@ export async function signInWithGoogle() {
     throw new Error('Google girişi iptal edildi.');
   }
 
-  // --- DEBUG İÇİN ÖNEMLİ KISIM ---
-  console.log("🟢 Dönen Tam URL:", result.url);
-  // ------------------------------
-
   const params = extractParamsFromUrl(result.url);
-  
-  // --- DEBUG İÇİN ÖNEMLİ KISIM ---
-  console.log("🟢 Ayrıştırılan Parametreler:", params);
-  // ------------------------------
 
   // SENARYO A: Supabase 'code' (PKCE Flow) döndürdüyse
   if (params.code) {
