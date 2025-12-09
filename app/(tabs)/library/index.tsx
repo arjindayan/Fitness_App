@@ -4,6 +4,7 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -14,9 +15,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
+import { MovementDetailModal } from '@/components/MovementDetailModal';
 import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { MOVEMENT_CATEGORIES, MOVEMENT_EQUIPMENTS } from '@/constants/movements';
 import { useCreateMovementMutation, useMovementList } from '@/services/movementService';
+import { Movement } from '@/types/movement';
 import { theme } from '@/theme';
 
 const movementSchema = z.object({
@@ -32,6 +35,7 @@ export default function LibraryScreen() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [equipment, setEquipment] = useState<string | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
+  const [selectedMovement, setSelectedMovement] = useState<Movement | null>(null);
 
   const movementParams = useMemo(
     () => ({
@@ -142,16 +146,37 @@ export default function LibraryScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
             renderItem={({ item }) => (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardMeta}>
-                  {item.equipment ?? 'Ekipman yok'} • {item.difficulty ?? 'Seviye belirtilmedi'}
-                </Text>
-                {item.instructions ? <Text style={styles.cardNote}>{item.instructions}</Text> : null}
-              </View>
+              <Pressable style={styles.card} onPress={() => setSelectedMovement(item)}>
+                <View style={styles.cardContent}>
+                  {item.image_url ? (
+                    <Image source={{ uri: item.image_url }} style={styles.cardImage} />
+                  ) : (
+                    <View style={styles.cardImagePlaceholder}>
+                      <Text style={styles.cardImagePlaceholderText}>💪</Text>
+                    </View>
+                  )}
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.cardTitle}>{item.name}</Text>
+                    <Text style={styles.cardMeta}>
+                      {item.equipment ?? 'Ekipman yok'} • {item.difficulty ?? 'Seviye belirtilmedi'}
+                    </Text>
+                    {item.instructions ? (
+                      <Text style={styles.cardNote} numberOfLines={1}>{item.instructions}</Text>
+                    ) : null}
+                  </View>
+                  <Text style={styles.cardArrow}>→</Text>
+                </View>
+              </Pressable>
             )}
           />
         )}
+
+        {/* Hareket Detay Modalı */}
+        <MovementDetailModal
+          visible={!!selectedMovement}
+          movement={selectedMovement}
+          onClose={() => setSelectedMovement(null)}
+        />
 
         <Modal visible={isModalVisible} animationType="slide" transparent>
           <View style={styles.modalBackdrop}>
@@ -313,7 +338,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: theme.colors.border,
     shadowColor: '#a2b4d8',
@@ -321,19 +346,52 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 10 },
   },
+  cardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  cardImagePlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  cardImagePlaceholderText: {
+    fontSize: 24,
+  },
+  cardInfo: {
+    flex: 1,
+  },
   cardTitle: {
     color: theme.colors.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
   },
   cardMeta: {
     color: theme.colors.muted,
-    marginTop: 4,
+    marginTop: 2,
+    fontSize: 13,
   },
   cardNote: {
-    color: theme.colors.text,
-    marginTop: 8,
-    lineHeight: 18,
+    color: theme.colors.subtle,
+    marginTop: 4,
+    fontSize: 12,
+  },
+  cardArrow: {
+    color: theme.colors.muted,
+    fontSize: 18,
+    marginLeft: 8,
   },
   modalBackdrop: {
     flex: 1,

@@ -2,10 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
 
 import { supabase } from '@/lib/supabase';
-import { ScheduleInstance } from '@/types/program';
+import { ScheduleInstance, WorkoutExercise } from '@/types/program';
 
 const TODAY_PLAN_KEY = ['today-plan'];
 const WORKOUT_HISTORY_KEY = ['workout-history'];
+const WORKOUT_EXERCISES_KEY = ['workout-exercises'];
 
 export async function fetchTodayPlan(): Promise<ScheduleInstance[]> {
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -121,5 +122,49 @@ export function useMonthlyWorkoutHistory(year: number, month: number) {
   return useQuery({
     queryKey: [...WORKOUT_HISTORY_KEY, 'monthly', year, month],
     queryFn: () => fetchWorkoutHistory(monthStart, monthEnd),
+  });
+}
+
+// Antrenman egzersizlerini çek (workout_id'ye göre)
+export type WorkoutExerciseWithMovement = WorkoutExercise & {
+  movements: {
+    id: string;
+    name: string;
+    image_url?: string | null;
+  };
+};
+
+export async function fetchWorkoutExercises(workoutId: string): Promise<WorkoutExerciseWithMovement[]> {
+  const { data, error } = await supabase
+    .from('workout_blocks')
+    .select(`
+      workout_exercises(
+        *,
+        movements(id, name, image_url)
+      )
+    `)
+    .eq('workout_id', workoutId)
+    .order('order_index', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  // Flatten blocks -> exercises
+  const exercises: WorkoutExerciseWithMovement[] = [];
+  for (const block of data ?? []) {
+    for (const exercise of block.workout_exercises ?? []) {
+      exercises.push(exercise as WorkoutExerciseWithMovement);
+    }
+  }
+
+  return exercises;
+}
+
+export function useWorkoutExercises(workoutId: string | null) {
+  return useQuery({
+    queryKey: [...WORKOUT_EXERCISES_KEY, workoutId],
+    queryFn: () => fetchWorkoutExercises(workoutId!),
+    enabled: !!workoutId,
   });
 }

@@ -193,10 +193,10 @@ export default function ProgramBuilderScreen() {
                             </View>
                           )}
                           <View style={styles.exerciseInfo}>
-                            <Text style={styles.exerciseTitle}>{exercise.movementName}</Text>
-                            <Text style={styles.exerciseMeta}>
+                        <Text style={styles.exerciseTitle}>{exercise.movementName}</Text>
+                        <Text style={styles.exerciseMeta}>
                               {exercise.sets} set x {exercise.reps} {exercise.restSeconds ? `| ${exercise.restSeconds}s dinlenme` : ''}
-                            </Text>
+                        </Text>
                           </View>
                         </View>
                         <Pressable style={styles.removeButton} onPress={() => removeExercise(day, index)}>
@@ -249,8 +249,8 @@ export default function ProgramBuilderScreen() {
                           </View>
                         )}
                         <View style={styles.movementInfo}>
-                          <Text style={styles.movementName}>{movement.name}</Text>
-                          <Text style={styles.movementMeta}>{movement.equipment ?? 'Ekipman yok'}</Text>
+                      <Text style={styles.movementName}>{movement.name}</Text>
+                      <Text style={styles.movementMeta}>{movement.equipment ?? 'Ekipman yok'}</Text>
                         </View>
                       </View>
                       {selectedMovementId === movement.id && (

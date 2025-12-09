@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -13,6 +14,35 @@ export default function ProgramsScreen() {
   const router = useRouter();
   const { data, isLoading } = useProgramList();
   const deleteMutation = useDeleteProgramMutation();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const swipeableRefs = useRef<Map<string, Swipeable | null>>(new Map());
+
+  const handleDelete = async (programId: string) => {
+    Alert.alert(
+      'Programı Sil',
+      'Bu programı silmek istediğine emin misin?',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingId(programId);
+            try {
+              await deleteMutation.mutateAsync(programId);
+              // Swipeable'ı kapat
+              swipeableRefs.current.get(programId)?.close();
+            } catch (error) {
+              console.error('Program silme hatası:', error);
+              Alert.alert('Hata', 'Program silinemedi. Lütfen tekrar deneyin.');
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -41,18 +71,24 @@ export default function ProgramsScreen() {
                 .filter(Boolean)
                 .join(' • ');
 
+              const isDeleting = deletingId === item.id;
+
               const renderRightActions = () => (
                 <Pressable
-                  style={styles.deleteAction}
-                  onPress={() => deleteMutation.mutate(item.id)}
-                  disabled={deleteMutation.isPending}
+                  style={[styles.deleteAction, isDeleting && styles.deleteActionLoading]}
+                  onPress={() => handleDelete(item.id)}
+                  disabled={isDeleting}
                 >
-                  <Text style={styles.deleteText}>{deleteMutation.isPending ? 'Siliniyor...' : 'Sil'}</Text>
+                  <Text style={styles.deleteText}>{isDeleting ? 'Siliniyor...' : 'Sil'}</Text>
                 </Pressable>
               );
 
               return (
-                <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
+                <Swipeable
+                  ref={(ref) => swipeableRefs.current.set(item.id, ref)}
+                  renderRightActions={renderRightActions}
+                  overshootRight={false}
+                >
                   <Pressable
                     style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
                     onPress={() => router.push(`/(tabs)/programs/${item.id}`)}
@@ -210,6 +246,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
+  },
+  deleteActionLoading: {
+    opacity: 0.6,
   },
   deleteText: {
     color: '#1a0a11',

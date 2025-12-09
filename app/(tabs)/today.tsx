@@ -1,16 +1,18 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MonthlyCalendarModal } from '@/components/MonthlyCalendarModal';
 import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { WeeklyStreak } from '@/components/WeeklyStreak';
+import { WorkoutLogModal } from '@/components/WorkoutLogModal';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { fromDayIndex } from '@/services/programService';
 import { useTodayPlan, useUpdateScheduleStatus, useWeeklyWorkoutHistory } from '@/services/scheduleService';
 import { useSessionContext } from '@/state/SessionProvider';
 import { fetchTodayStepsWithPermission } from '@/services/healthService';
+import { ScheduleInstance } from '@/types/program';
 import { theme } from '@/theme';
 
 export default function TodayScreen() {
@@ -22,6 +24,21 @@ export default function TodayScreen() {
   const [steps, setSteps] = useState<number | null>(null);
   const [stepsError, setStepsError] = useState<string | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [logModalVisible, setLogModalVisible] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<ScheduleInstance | null>(null);
+
+  const handleCompleteWorkout = (item: ScheduleInstance) => {
+    setSelectedWorkout(item);
+    setLogModalVisible(true);
+  };
+
+  const handleLogComplete = () => {
+    if (selectedWorkout) {
+      updateStatus.mutate({ scheduleId: selectedWorkout.id, status: 'done' });
+    }
+    setLogModalVisible(false);
+    setSelectedWorkout(null);
+  };
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -57,12 +74,9 @@ export default function TodayScreen() {
     }
 
     return (
-      <FlatList
-        data={data}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
+      <View style={styles.listContent}>
+        {data.map((item) => (
+          <View key={item.id} style={styles.card}>
             <Text style={styles.cardTitle}>{item.program_workouts?.title ?? 'Antrenman'}</Text>
             <Text style={styles.cardMeta}>
               {TRAINING_DAYS.find((day) => day.key === fromDayIndex(item.program_workouts?.day_of_week ?? 0))?.label ??
@@ -72,9 +86,9 @@ export default function TodayScreen() {
             <View style={styles.cardActions}>
               <Pressable
                 style={[styles.statusButton, styles.doneButton]}
-                onPress={() => updateStatus.mutate({ scheduleId: item.id, status: 'done' })}
+                onPress={() => handleCompleteWorkout(item)}
               >
-                <Text style={styles.statusLabel}>Tamamlandı</Text>
+                <Text style={styles.statusLabel}>Tamamla + Kaydet</Text>
               </Pressable>
               <Pressable
                 style={[styles.statusButton, styles.skipButton]}
@@ -84,8 +98,8 @@ export default function TodayScreen() {
               </Pressable>
             </View>
           </View>
-        )}
-      />
+        ))}
+      </View>
     );
   };
 
@@ -121,6 +135,19 @@ export default function TodayScreen() {
       <MonthlyCalendarModal 
         visible={calendarVisible} 
         onClose={() => setCalendarVisible(false)} 
+      />
+
+      {/* Antrenman Kayıt Modal */}
+      <WorkoutLogModal
+        visible={logModalVisible}
+        workoutId={selectedWorkout?.workout_id ?? null}
+        scheduleInstanceId={selectedWorkout?.id ?? null}
+        workoutTitle={selectedWorkout?.program_workouts?.title ?? 'Antrenman'}
+        onClose={() => {
+          setLogModalVisible(false);
+          setSelectedWorkout(null);
+        }}
+        onComplete={handleLogComplete}
       />
     </SafeAreaView>
   );

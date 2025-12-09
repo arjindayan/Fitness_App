@@ -66,3 +66,36 @@ export type ScheduleInstance = {
     title: string;
   };
 };
+
+// Egzersiz log kaydı
+export type ExerciseLog = {
+  id: string;
+  user_id: string;
+  movement_id: string;
+  schedule_instance_id?: string | null;
+  sets_completed: number;
+  reps_completed?: string | null; // "10,10,8" formatında
+  weight_kg?: number | null;
+  duration_seconds?: number | null;
+  note?: string | null;
+  difficulty_rating?: number | null; // 1-5
+  logged_at: string;
+  created_at?: string;
+  // Join edilmiş veriler
+  movements?: {
+    name: string;
+    image_url?: string | null;
+  };
+};
+
+// Hareket için özet istatistikler
+export type MovementStats = {
+  movement_id: string;
+  movement_name: string;
+  movement_image?: string | null;
+  total_sessions: number;
+  last_weight_kg?: number | null;
+  max_weight_kg?: number | null;
+  avg_sets: number;
+  last_logged_at: string;
+};

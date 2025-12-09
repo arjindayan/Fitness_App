@@ -38,23 +38,23 @@ export function SessionProvider({ children }: Props) {
     let isMounted = true;
 
     supabase.auth
-      .getSession()
-      .then(({ data, error }) => {
-        if (!isMounted) {
-          return;
-        }
+  .getSession()
+  .then(({ data, error }) => {
+    if (!isMounted) {
+      return;
+    }
 
-        if (error) {
-          console.error('Failed to fetch session', error);
-        } else {
-          setSession(data.session ?? null);
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsSessionLoading(false);
-        }
-      });
+    if (error) {
+      console.error('Failed to fetch session', error);
+    } else {
+      setSession(data.session ?? null);
+    }
+  })
+  .finally(() => {
+    if (isMounted) {
+      setIsSessionLoading(false);
+    }
+  });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
