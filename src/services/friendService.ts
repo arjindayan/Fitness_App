@@ -481,7 +481,31 @@ export async function fetchFriendsTodayWorkouts(): Promise<FriendTodayWorkout[]>
   const friendIds = friendships.map(f => f.friend_id);
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  // Arkadaşların bugünkü antrenmanlarını al
+  // Arkadaşların aktif programlarını bul
+  const { data: friendPrograms, error: programError } = await supabase
+    .from('programs')
+    .select('id, title, owner_id, is_active')
+    .in('owner_id', friendIds);
+
+  if (programError) {
+    throw programError;
+  }
+
+  if (!friendPrograms || friendPrograms.length === 0) {
+    return [];
+  }
+
+  // Sadece aktif programları filtrele
+  const activePrograms = friendPrograms.filter(p => p.is_active);
+
+  if (activePrograms.length === 0) {
+    return [];
+  }
+
+  const programIds = activePrograms.map(p => p.id);
+  const programMap = new Map(activePrograms.map(p => [p.id, p]));
+
+  // Bugünkü schedule_instances'ları bu program_id'lerle sorgula
   const { data: schedules, error: scheduleError } = await supabase
     .from('schedule_instances')
     .select(`
@@ -489,14 +513,18 @@ export async function fetchFriendsTodayWorkouts(): Promise<FriendTodayWorkout[]>
       status,
       program_id,
       workout_id,
-      programs(title, owner_id),
+      scheduled_date,
       program_workouts(title)
     `)
     .eq('scheduled_date', today)
-    .in('programs.owner_id', friendIds);
+    .in('program_id', programIds);
 
   if (scheduleError) {
     throw scheduleError;
+  }
+
+  if (!schedules || schedules.length === 0) {
+    return [];
   }
 
   // Arkadaş profillerini al
@@ -514,9 +542,12 @@ export async function fetchFriendsTodayWorkouts(): Promise<FriendTodayWorkout[]>
   // Sonuçları birleştir
   const results: FriendTodayWorkout[] = [];
   
-  for (const schedule of schedules ?? []) {
-    const ownerId = (schedule.programs as any)?.owner_id;
-    if (!ownerId || !friendIds.includes(ownerId)) continue;
+  for (const schedule of schedules) {
+    const program = programMap.get(schedule.program_id);
+    if (!program) continue;
+    
+    const ownerId = program.owner_id;
+    if (!friendIds.includes(ownerId)) continue;
     
     const profile = profileMap.get(ownerId);
     if (!profile) continue;
@@ -527,7 +558,7 @@ export async function fetchFriendsTodayWorkouts(): Promise<FriendTodayWorkout[]>
       friendCode: profile.user_code ?? '',
       friendAvatar: profile.avatar_url,
       workoutTitle: (schedule.program_workouts as any)?.title ?? 'Antrenman',
-      programTitle: (schedule.programs as any)?.title ?? 'Program',
+      programTitle: program.title ?? 'Program',
       status: schedule.status as 'pending' | 'done' | 'skipped',
       scheduleId: schedule.id,
     });
@@ -649,6 +680,7 @@ export function useSendWorkoutInvite() {
     mutationFn: ({ receiverId, message }: { receiverId: string; message?: string }) =>
       sendWorkoutInvite(receiverId, message),
     onSuccess: () => {
+      // Hem gelen hem gönderilen davetleri güncelle
       queryClient.invalidateQueries({ queryKey: WORKOUT_INVITES_KEY });
     },
   });
@@ -671,6 +703,38 @@ export function useRespondToWorkoutInvite() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WORKOUT_INVITES_KEY });
     },
+  });
+}
+
+// Bugün gönderilen davetleri getir (kime davet gönderildiğini takip etmek için)
+export async function fetchOutgoingWorkoutInvites(): Promise<string[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return [];
+  }
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  const { data, error } = await supabase
+    .from('workout_invites')
+    .select('receiver_id')
+    .eq('sender_id', user.id)
+    .eq('invite_date', today);
+
+  if (error) {
+    return [];
+  }
+
+  // Bugün davet gönderilen kullanıcı ID'lerini döndür
+  return data?.map(d => d.receiver_id) ?? [];
+}
+
+export function useOutgoingWorkoutInvites(userId?: string) {
+  return useQuery({
+    queryKey: [...WORKOUT_INVITES_KEY, 'outgoing', userId],
+    queryFn: fetchOutgoingWorkoutInvites,
+    enabled: !!userId,
   });
 }
 

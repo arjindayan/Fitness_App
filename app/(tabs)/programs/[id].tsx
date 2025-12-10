@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -20,7 +21,7 @@ import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { fromDayIndex } from '@/services/programService';
 
 import { PastelBackdrop } from '@/components/PastelBackdrop';
-import { useAddExerciseMutation, useProgramDetail } from '@/services/programService';
+import { useAddExerciseMutation, useProgramDetail, useUpdateProgramMutation, useDeleteExerciseMutation } from '@/services/programService';
 import { useMovementList } from '@/services/movementService';
 import { theme } from '@/theme';
 
@@ -37,10 +38,17 @@ export default function ProgramDetailScreen() {
   const programId = useMemo(() => (Array.isArray(id) ? id[0] : id), [id]);
   const { data, isLoading } = useProgramDetail(programId);
   const addExercise = useAddExerciseMutation(programId ?? '');
+  const updateProgram = useUpdateProgramMutation(programId ?? '');
+  const deleteExercise = useDeleteExerciseMutation(programId ?? '');
 
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [selectedMovement, setSelectedMovement] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
+  
+  // Düzenleme state'leri
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editFocus, setEditFocus] = useState('');
   const movementParams = useMemo(
     () => ({
       search,
@@ -57,18 +65,67 @@ export default function ProgramDetailScreen() {
 
   const handleAddExercise = handleSubmit(async (values) => {
     if (!selectedWorkoutId || !selectedMovement) return;
-    await addExercise.mutateAsync({
-      workoutId: selectedWorkoutId,
-      movementId: selectedMovement.id,
-      sets: Number(values.sets),
-      reps: values.reps,
-      restSeconds: values.restSeconds ? Number(values.restSeconds) : null,
-      note: values.note?.trim() || null,
-    });
-    reset();
-    setSelectedMovement(null);
-    setSelectedWorkoutId(null);
+    try {
+      await addExercise.mutateAsync({
+        workoutId: selectedWorkoutId,
+        movementId: selectedMovement.id,
+        sets: Number(values.sets),
+        reps: values.reps,
+        restSeconds: values.restSeconds ? Number(values.restSeconds) : null,
+        note: values.note?.trim() || null,
+      });
+      reset();
+      setSelectedMovement(null);
+      setSelectedWorkoutId(null);
+      Alert.alert('Başarılı', 'Hareket eklendi!');
+    } catch (error) {
+      Alert.alert('Hata', 'Hareket eklenemedi');
+    }
   });
+
+  const handleOpenEditModal = () => {
+    setEditTitle(data?.title ?? '');
+    setEditFocus(data?.focus ?? '');
+    setEditModalVisible(true);
+  };
+
+  const handleSaveProgram = async () => {
+    if (!editTitle.trim()) {
+      Alert.alert('Hata', 'Program adı gerekli');
+      return;
+    }
+    try {
+      await updateProgram.mutateAsync({
+        title: editTitle.trim(),
+        focus: editFocus.trim() || undefined,
+      });
+      setEditModalVisible(false);
+      Alert.alert('Başarılı', 'Program güncellendi');
+    } catch (error) {
+      Alert.alert('Hata', 'Program güncellenemedi');
+    }
+  };
+
+  const handleDeleteExercise = (exerciseId: string, exerciseName: string) => {
+    Alert.alert(
+      'Hareketi Sil',
+      `"${exerciseName}" hareketini silmek istiyor musun?`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteExercise.mutateAsync(exerciseId);
+            } catch (error) {
+              Alert.alert('Hata', 'Hareket silinemedi');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   if (!programId) {
     return (
@@ -99,10 +156,15 @@ export default function ProgramDetailScreen() {
       <PastelBackdrop />
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>{data.title}</Text>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backLabel}>← Geri</Text>
-          </Pressable>
+          <Text style={styles.title} numberOfLines={1}>{data.title}</Text>
+          <View style={styles.headerButtons}>
+            <Pressable style={styles.editButton} onPress={handleOpenEditModal}>
+              <Text style={styles.editButtonText}>✎ Düzenle</Text>
+            </Pressable>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <Text style={styles.backLabel}>← Geri</Text>
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={{ gap: 14, paddingBottom: 120 }}>
@@ -168,6 +230,12 @@ export default function ProgramDetailScreen() {
                             <Text style={styles.exerciseEquipment}>{exercise.movements.equipment}</Text>
                           )}
                         </View>
+                        <Pressable
+                          style={styles.deleteExerciseButton}
+                          onPress={() => handleDeleteExercise(exercise.id, exercise.movements?.name ?? 'Hareket')}
+                        >
+                          <Text style={styles.deleteExerciseText}>✕</Text>
+                        </Pressable>
                       </View>
                     ))}
                   </View>
@@ -289,6 +357,43 @@ export default function ProgramDetailScreen() {
             </KeyboardAvoidingView>
           </SafeAreaView>
         </Modal>
+
+        {/* Program Düzenleme Modal */}
+        <Modal visible={editModalVisible} animationType="slide" transparent>
+          <View style={styles.editModalOverlay}>
+            <View style={styles.editModalContent}>
+              <View style={styles.editModalHeader}>
+                <Text style={styles.editModalTitle}>Programı Düzenle</Text>
+                <Pressable onPress={() => setEditModalVisible(false)}>
+                  <Text style={styles.editModalClose}>✕</Text>
+                </Pressable>
+              </View>
+              <TextInput
+                style={styles.editInput}
+                placeholder="Program adı"
+                placeholderTextColor={theme.colors.subtle}
+                value={editTitle}
+                onChangeText={setEditTitle}
+              />
+              <TextInput
+                style={styles.editInput}
+                placeholder="Fokus (örn. push/pull/legs)"
+                placeholderTextColor={theme.colors.subtle}
+                value={editFocus}
+                onChangeText={setEditFocus}
+              />
+              <Pressable
+                style={[styles.editSaveButton, updateProgram.isPending && { opacity: 0.6 }]}
+                onPress={handleSaveProgram}
+                disabled={updateProgram.isPending}
+              >
+                <Text style={styles.editSaveButtonText}>
+                  {updateProgram.isPending ? 'Kaydediliyor...' : 'Kaydet'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -315,6 +420,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     flex: 1,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: theme.radii.pill,
+    backgroundColor: theme.colors.primary,
+    shadowColor: '#b8c7ff',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  editButtonText: {
+    color: '#1a2a52',
+    fontWeight: '700',
+  },
   backButton: {
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -330,6 +453,21 @@ const styles = StyleSheet.create({
   backLabel: {
     color: theme.colors.text,
     fontWeight: '600',
+  },
+  deleteExerciseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ffecef',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ffd4db',
+  },
+  deleteExerciseText: {
+    color: theme.colors.danger,
+    fontWeight: '700',
+    fontSize: 14,
   },
   infoCard: {
     backgroundColor: theme.colors.surface,
@@ -535,5 +673,58 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#1a2a52',
     fontWeight: '700',
+  },
+  // Düzenleme Modal Stilleri
+  editModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  editModalContent: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 20,
+    padding: 20,
+    gap: 16,
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  editModalTitle: {
+    color: theme.colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  editModalClose: {
+    color: theme.colors.muted,
+    fontSize: 24,
+    padding: 4,
+  },
+  editInput: {
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: theme.colors.text,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  editSaveButton: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    shadowColor: '#b8c7ff',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  editSaveButtonText: {
+    color: '#1a2a52',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });

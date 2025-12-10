@@ -31,6 +31,7 @@ import {
   useFriendsTodayWorkouts,
   useSendWorkoutInvite,
   useIncomingWorkoutInvites,
+  useOutgoingWorkoutInvites,
   useRespondToWorkoutInvite,
 } from '@/services/friendService';
 import { useSessionContext } from '@/state/SessionProvider';
@@ -60,6 +61,7 @@ export default function SocialScreen() {
   const { data: friendsTodayWorkouts = [], isLoading: loadingTodayWorkouts } = useFriendsTodayWorkouts(userId);
   const sendWorkoutInvite = useSendWorkoutInvite();
   const { data: workoutInvites = [], isLoading: loadingInvites } = useIncomingWorkoutInvites(userId);
+  const { data: sentInviteIds = [] } = useOutgoingWorkoutInvites(userId); // Bugün kime davet gönderildi
   const respondInvite = useRespondToWorkoutInvite();
 
   const handleCopyCode = async () => {
@@ -376,12 +378,18 @@ export default function SocialScreen() {
                     </View>
                   </View>
                   {item.status === 'pending' && (
-                    <Pressable
-                      style={styles.inviteButton}
-                      onPress={() => handleSendWorkoutInvite(item.friendId, item.friendName)}
-                    >
-                      <Text style={styles.inviteButtonText}>Davet Et</Text>
-                    </Pressable>
+                    sentInviteIds.includes(item.friendId) ? (
+                      <View style={styles.inviteSentBadge}>
+                        <Text style={styles.inviteSentText}>✓ Davet Gönderildi</Text>
+                      </View>
+                    ) : (
+                      <Pressable
+                        style={styles.inviteButton}
+                        onPress={() => handleSendWorkoutInvite(item.friendId, item.friendName)}
+                      >
+                        <Text style={styles.inviteButtonText}>Davet Et</Text>
+                      </Pressable>
+                    )
                   )}
                 </View>
               ))
@@ -949,6 +957,19 @@ const styles = StyleSheet.create({
     color: '#1a2a52',
     fontWeight: '700',
     fontSize: 13,
+  },
+  inviteSentBadge: {
+    backgroundColor: '#e0f6f0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#c7e8db',
+  },
+  inviteSentText: {
+    color: '#2d8a5f',
+    fontWeight: '600',
+    fontSize: 12,
   },
   // Davet kartı
   inviteCard: {

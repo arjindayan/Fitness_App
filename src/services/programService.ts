@@ -302,9 +302,12 @@ export function useAddExerciseMutation(programId: string) {
 
   return useMutation({
     mutationFn: addExerciseToWorkout,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: PROGRAM_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: [...PROGRAM_QUERY_KEY, programId] });
+    onSuccess: async () => {
+      // Önce invalidate et
+      await queryClient.invalidateQueries({ queryKey: PROGRAM_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: [...PROGRAM_QUERY_KEY, programId] });
+      // Sonra zorla refetch et
+      await queryClient.refetchQueries({ queryKey: [...PROGRAM_QUERY_KEY, programId] });
     },
   });
 }
@@ -331,4 +334,53 @@ export async function generateInitialSchedule(programId: string, workouts: Progr
   }
 
   await supabase.from('schedule_instances').insert(schedulePayload);
+}
+
+// Program bilgilerini güncelle
+export async function updateProgram(programId: string, updates: { title?: string; focus?: string }) {
+  const { error } = await supabase
+    .from('programs')
+    .update(updates)
+    .eq('id', programId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export function useUpdateProgramMutation(programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (updates: { title?: string; focus?: string }) => updateProgram(programId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PROGRAM_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: [...PROGRAM_QUERY_KEY, programId] });
+    },
+  });
+}
+
+// Egzersizi sil
+export async function deleteExercise(exerciseId: string) {
+  const { error } = await supabase
+    .from('workout_exercises')
+    .delete()
+    .eq('id', exerciseId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export function useDeleteExerciseMutation(programId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteExercise,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: PROGRAM_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: [...PROGRAM_QUERY_KEY, programId] });
+      await queryClient.refetchQueries({ queryKey: [...PROGRAM_QUERY_KEY, programId] });
+    },
+  });
 }
