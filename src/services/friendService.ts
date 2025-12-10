@@ -9,10 +9,12 @@ const FRIENDSHIPS_KEY = ['friendships'];
 
 // Kullanıcıyı user_code ile ara
 export async function searchUserByCode(userCode: string): Promise<Profile | null> {
+  const searchCode = userCode.toUpperCase().trim();
+  
   const { data, error } = await supabase
     .from('profiles')
     .select('id, display_name, user_code, avatar_url, goal')
-    .eq('user_code', userCode.toUpperCase().trim())
+    .eq('user_code', searchCode)
     .maybeSingle();
 
   if (error) {
@@ -30,27 +32,47 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
     throw new Error('Oturum açılmamış');
   }
 
+  // Kendine istek gönderemez
+  if (user.id === receiverId) {
+    throw new Error('Kendinize arkadaşlık isteği gönderemezsiniz');
+  }
+
+  // Alıcı kullanıcı var mı kontrol et
+  const { data: receiverProfile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', receiverId)
+    .maybeSingle();
+
+  if (profileError || !receiverProfile) {
+    throw new Error('Kullanıcı bulunamadı');
+  }
+
   // Zaten arkadaş mı kontrol et
   const { data: existingFriendship } = await supabase
     .from('friendships')
     .select('id')
-    .or(`and(user_id.eq.${user.id},friend_id.eq.${receiverId}),and(user_id.eq.${receiverId},friend_id.eq.${user.id})`)
+    .eq('user_id', user.id)
+    .eq('friend_id', receiverId)
     .maybeSingle();
 
   if (existingFriendship) {
     throw new Error('Bu kişi zaten arkadaşınız');
   }
 
-  // Bekleyen istek var mı kontrol et
+  // Bekleyen istek var mı kontrol et (her iki yönde)
   const { data: existingRequest } = await supabase
     .from('friend_requests')
-    .select('id, status')
+    .select('id, status, sender_id')
     .or(`and(sender_id.eq.${user.id},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${user.id})`)
     .eq('status', 'pending')
     .maybeSingle();
 
   if (existingRequest) {
-    throw new Error('Zaten bekleyen bir istek var');
+    if (existingRequest.sender_id === receiverId) {
+      throw new Error('Bu kişi size zaten istek göndermiş! İstekler sekmesinden kabul edebilirsiniz.');
+    }
+    throw new Error('Bu kişiye zaten istek gönderdiniz');
   }
 
   const { data, error } = await supabase
@@ -64,6 +86,9 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
     .single();
 
   if (error) {
+    if (error.code === '23505') {
+      throw new Error('Bu kişiye zaten istek gönderilmiş');
+    }
     throw error;
   }
 
@@ -89,11 +114,13 @@ export async function fetchIncomingRequests(): Promise<FriendRequest[]> {
     throw error;
   }
 
-  // Sender bilgilerini ayrı çek
   const requests = data ?? [];
   const enrichedRequests: FriendRequest[] = [];
 
   for (const request of requests) {
+    // Ekstra güvenlik kontrolü
+    if (request.receiver_id !== user.id) continue;
+
     const { data: senderProfile } = await supabase
       .from('profiles')
       .select('id, display_name, user_code, avatar_url')
@@ -128,11 +155,13 @@ export async function fetchOutgoingRequests(): Promise<FriendRequest[]> {
     throw error;
   }
 
-  // Receiver bilgilerini ayrı çek
   const requests = data ?? [];
   const enrichedRequests: FriendRequest[] = [];
 
   for (const request of requests) {
+    // Ekstra güvenlik kontrolü
+    if (request.sender_id !== user.id) continue;
+
     const { data: receiverProfile } = await supabase
       .from('profiles')
       .select('id, display_name, user_code, avatar_url')
@@ -156,16 +185,42 @@ export async function acceptFriendRequest(requestId: string): Promise<void> {
     throw new Error('Oturum açılmamış');
   }
 
-  // İsteği bul
+  // İsteği bul ve kontrol et
   const { data: request, error: fetchError } = await supabase
     .from('friend_requests')
     .select('*')
     .eq('id', requestId)
-    .eq('receiver_id', user.id)
     .single();
 
   if (fetchError || !request) {
     throw new Error('İstek bulunamadı');
+  }
+
+  // Sadece alıcı kabul edebilir
+  if (request.receiver_id !== user.id) {
+    throw new Error('Bu isteği kabul etme yetkiniz yok');
+  }
+
+  // Zaten işlenmiş mi?
+  if (request.status !== 'pending') {
+    throw new Error('Bu istek zaten işlenmiş');
+  }
+
+  // Zaten arkadaş mı kontrol et
+  const { data: existingFriendship } = await supabase
+    .from('friendships')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('friend_id', request.sender_id)
+    .maybeSingle();
+
+  if (existingFriendship) {
+    // Zaten arkadaşsa sadece isteği güncelle
+    await supabase
+      .from('friend_requests')
+      .update({ status: 'accepted', updated_at: new Date().toISOString() })
+      .eq('id', requestId);
+    return;
   }
 
   // İsteği kabul et
@@ -178,16 +233,23 @@ export async function acceptFriendRequest(requestId: string): Promise<void> {
     throw updateError;
   }
 
-  // İki yönlü arkadaşlık oluştur
-  const { error: friendshipError } = await supabase
+  // İki yönlü arkadaşlık oluştur - önce alıcı tarafı (mevcut kullanıcı)
+  const { error: friendship1Error } = await supabase
     .from('friendships')
-    .insert([
-      { user_id: user.id, friend_id: request.sender_id },
-      { user_id: request.sender_id, friend_id: user.id },
-    ]);
+    .insert({ user_id: user.id, friend_id: request.sender_id });
 
-  if (friendshipError) {
-    throw friendshipError;
+  if (friendship1Error && friendship1Error.code !== '23505') {
+    // 23505 = unique violation (zaten var demek, sorun değil)
+    throw friendship1Error;
+  }
+
+  // Sonra gönderen tarafı
+  const { error: friendship2Error } = await supabase
+    .from('friendships')
+    .insert({ user_id: request.sender_id, friend_id: user.id });
+
+  if (friendship2Error && friendship2Error.code !== '23505') {
+    throw friendship2Error;
   }
 }
 
@@ -268,6 +330,7 @@ export async function fetchFriendships(): Promise<Friendship[]> {
 }
 
 // Arkadaşlığı sonlandır
+// NOT: Veritabanı trigger'ı karşı tarafın arkadaşlığını otomatik siler
 export async function removeFriend(friendshipId: string, friendId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -275,14 +338,14 @@ export async function removeFriend(friendshipId: string, friendId: string): Prom
     throw new Error('Oturum açılmamış');
   }
 
-  // İki yönlü arkadaşlığı sil
   const { error } = await supabase
     .from('friendships')
     .delete()
-    .or(`and(user_id.eq.${user.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user.id})`);
+    .eq('user_id', user.id)
+    .eq('friend_id', friendId);
 
   if (error) {
-    throw error;
+    throw new Error('Arkadaşlık sonlandırılamadı');
   }
 }
 
@@ -305,17 +368,19 @@ export function useSendFriendRequest() {
   });
 }
 
-export function useIncomingRequests() {
+export function useIncomingRequests(userId?: string) {
   return useQuery({
-    queryKey: [...FRIEND_REQUESTS_KEY, 'incoming'],
+    queryKey: [...FRIEND_REQUESTS_KEY, 'incoming', userId],
     queryFn: fetchIncomingRequests,
+    enabled: !!userId, // userId yoksa sorgu çalışmasın
   });
 }
 
-export function useOutgoingRequests() {
+export function useOutgoingRequests(userId?: string) {
   return useQuery({
-    queryKey: [...FRIEND_REQUESTS_KEY, 'outgoing'],
+    queryKey: [...FRIEND_REQUESTS_KEY, 'outgoing', userId],
     queryFn: fetchOutgoingRequests,
+    enabled: !!userId, // userId yoksa sorgu çalışmasın
   });
 }
 
@@ -353,10 +418,11 @@ export function useCancelFriendRequest() {
   });
 }
 
-export function useFriendships() {
+export function useFriendships(userId?: string) {
   return useQuery({
-    queryKey: FRIENDSHIPS_KEY,
+    queryKey: [...FRIENDSHIPS_KEY, userId],
     queryFn: fetchFriendships,
+    enabled: !!userId, // userId yoksa sorgu çalışmasın
   });
 }
 
@@ -470,10 +536,11 @@ export async function fetchFriendsTodayWorkouts(): Promise<FriendTodayWorkout[]>
   return results;
 }
 
-export function useFriendsTodayWorkouts() {
+export function useFriendsTodayWorkouts(userId?: string) {
   return useQuery({
-    queryKey: FRIENDS_TODAY_KEY,
+    queryKey: [...FRIENDS_TODAY_KEY, userId],
     queryFn: fetchFriendsTodayWorkouts,
+    enabled: !!userId,
   });
 }
 
@@ -587,10 +654,11 @@ export function useSendWorkoutInvite() {
   });
 }
 
-export function useIncomingWorkoutInvites() {
+export function useIncomingWorkoutInvites(userId?: string) {
   return useQuery({
-    queryKey: [...WORKOUT_INVITES_KEY, 'incoming'],
+    queryKey: [...WORKOUT_INVITES_KEY, 'incoming', userId],
     queryFn: fetchIncomingWorkoutInvites,
+    enabled: !!userId,
   });
 }
 

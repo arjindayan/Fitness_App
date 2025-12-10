@@ -44,21 +44,22 @@ export default function SocialScreen() {
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [searchCode, setSearchCode] = useState('');
 
-  // Hooks
+  // Hooks - userId ile cache'i kullanıcıya özel yap
+  const userId = profile?.id;
   const searchUser = useSearchUserByCode();
   const sendRequest = useSendFriendRequest();
-  const { data: incomingRequests = [], isLoading: loadingIncoming } = useIncomingRequests();
-  const { data: outgoingRequests = [], isLoading: loadingOutgoing } = useOutgoingRequests();
+  const { data: incomingRequests = [], isLoading: loadingIncoming } = useIncomingRequests(userId);
+  const { data: outgoingRequests = [], isLoading: loadingOutgoing } = useOutgoingRequests(userId);
   const acceptRequest = useAcceptFriendRequest();
   const rejectRequest = useRejectFriendRequest();
   const cancelRequest = useCancelFriendRequest();
-  const { data: friendships = [], isLoading: loadingFriends } = useFriendships();
+  const { data: friendships = [], isLoading: loadingFriends } = useFriendships(userId);
   const removeFriend = useRemoveFriend();
   
   // Bugün antrenman yapacak arkadaşlar
-  const { data: friendsTodayWorkouts = [], isLoading: loadingTodayWorkouts } = useFriendsTodayWorkouts();
+  const { data: friendsTodayWorkouts = [], isLoading: loadingTodayWorkouts } = useFriendsTodayWorkouts(userId);
   const sendWorkoutInvite = useSendWorkoutInvite();
-  const { data: workoutInvites = [], isLoading: loadingInvites } = useIncomingWorkoutInvites();
+  const { data: workoutInvites = [], isLoading: loadingInvites } = useIncomingWorkoutInvites(userId);
   const respondInvite = useRespondToWorkoutInvite();
 
   const handleCopyCode = async () => {
