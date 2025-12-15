@@ -1,15 +1,18 @@
 import { useRouter } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { signOut } from '@/services/authService';
 import { useSessionContext } from '@/state/SessionProvider';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 export default function ProfileScreen() {
   const { profile } = useSessionContext();
   const router = useRouter();
+  const { theme, mode, toggleMode } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const handleSignOut = async () => {
     try {
@@ -33,6 +36,22 @@ export default function ProfileScreen() {
           <Text style={styles.value}>{profile?.timezone ?? '-'}</Text>
         </View>
 
+        <View style={styles.card}>
+          <View style={styles.preferenceRow}>
+            <View>
+              <Text style={styles.label}>Tema</Text>
+              <Text style={styles.value}>{mode === 'dark' ? 'Koyu tema' : 'Acik tema'}</Text>
+            </View>
+            <Switch
+              value={mode === 'dark'}
+              onValueChange={toggleMode}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor={mode === 'dark' ? '#0f1d3d' : '#ffffff'}
+              ios_backgroundColor={theme.colors.border}
+            />
+          </View>
+        </View>
+
         <View style={styles.actions}>
           <Pressable style={styles.secondaryButton} onPress={() => router.push('/(onboarding)')}>
             <Text style={styles.secondaryLabel}>Profilini düzenle</Text>
@@ -47,7 +66,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -85,6 +104,12 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: 18,
     fontWeight: '600',
+  },
+  preferenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   actions: {
     marginTop: 12,

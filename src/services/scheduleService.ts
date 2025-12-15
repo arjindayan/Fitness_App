@@ -10,12 +10,29 @@ const WORKOUT_EXERCISES_KEY = ['workout-exercises'];
 
 export async function fetchTodayPlan(): Promise<ScheduleInstance[]> {
   const today = format(new Date(), 'yyyy-MM-dd');
+  // Sadece oturum açmış kullanıcının kendi programlarına ait bugünkü antrenmanları getir
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error('Giriş gerekiyor');
+  }
+
   const { data, error } = await supabase
     .from('schedule_instances')
     .select(
-      'id,status,scheduled_date,program_id,workout_id,programs(title),program_workouts(title,day_of_week)'
+      // Program silinmişse (veya erişilemezse) o schedule'ı hiç getirme
+      'id,status,scheduled_date,program_id,workout_id,programs!inner(owner_id,title),program_workouts(title,day_of_week)'
     )
     .eq('scheduled_date', today)
+    // Yalnızca current user'ın sahibi olduğu programlara ait kayıtlar
+    .eq('programs.owner_id', user.id)
     .order('scheduled_date', { ascending: true });
 
   if (error) {
@@ -25,10 +42,12 @@ export async function fetchTodayPlan(): Promise<ScheduleInstance[]> {
   return data ?? [];
 }
 
-export function useTodayPlan() {
+export function useTodayPlan(userId?: string | null) {
   return useQuery({
-    queryKey: TODAY_PLAN_KEY,
+    // Kullanıcıya özel cache anahtarı
+    queryKey: [...TODAY_PLAN_KEY, userId],
     queryFn: fetchTodayPlan,
+    enabled: !!userId, // Kullanıcı ID'si olmadan sorgu çalışmasın
   });
 }
 
@@ -65,11 +84,28 @@ export type WorkoutDay = {
 };
 
 export async function fetchWorkoutHistory(startDate: string, endDate: string): Promise<WorkoutDay[]> {
+  // Sadece oturum açmış kullanıcının kendi programlarına ait geçmişi getir
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error('Giriş gerekiyor');
+  }
+
   const { data, error } = await supabase
     .from('schedule_instances')
-    .select('scheduled_date, status')
+    // Programı silinmiş olan schedule'ları hariç tutmak için programs ile inner join
+    .select('scheduled_date, status, programs!inner(owner_id,id)')
     .gte('scheduled_date', startDate)
     .lte('scheduled_date', endDate)
+    // Yalnızca current user'ın sahibi olduğu programlara ait kayıtlar
+    .eq('programs.owner_id', user.id)
     .order('scheduled_date', { ascending: true });
 
   if (error) {

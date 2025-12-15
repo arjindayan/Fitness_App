@@ -452,6 +452,7 @@ export type FriendTodayWorkout = {
   friendAvatar: string | null;
   workoutTitle: string;
   programTitle: string;
+  programId: string;
   status: 'pending' | 'done' | 'skipped';
   scheduleId: string;
 };
@@ -559,6 +560,7 @@ export async function fetchFriendsTodayWorkouts(): Promise<FriendTodayWorkout[]>
       friendAvatar: profile.avatar_url,
       workoutTitle: (schedule.program_workouts as any)?.title ?? 'Antrenman',
       programTitle: program.title ?? 'Program',
+      programId: program.id,
       status: schedule.status as 'pending' | 'done' | 'skipped',
       scheduleId: schedule.id,
     });

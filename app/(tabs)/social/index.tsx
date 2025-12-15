@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 
 import { PastelBackdrop } from '@/components/PastelBackdrop';
@@ -34,16 +34,27 @@ import {
   useOutgoingWorkoutInvites,
   useRespondToWorkoutInvite,
 } from '@/services/friendService';
+import { useProgramDetail } from '@/services/programService';
 import { useSessionContext } from '@/state/SessionProvider';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
+import { TRAINING_DAYS } from '@/constants/trainingDays';
+import { fromDayIndex } from '@/services/programService';
+import { Image } from 'react-native';
 
 type TabType = 'today' | 'friends' | 'requests';
 
 export default function SocialScreen() {
   const { profile } = useSessionContext();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabType>('today');
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [searchCode, setSearchCode] = useState('');
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
+  // Seçili program detayı
+  const { data: selectedProgram, isLoading: loadingProgram } = useProgramDetail(selectedProgramId ?? undefined);
 
   // Hooks - userId ile cache'i kullanıcıya özel yap
   const userId = profile?.id;
@@ -358,7 +369,11 @@ export default function SocialScreen() {
               </View>
             ) : (
               friendsTodayWorkouts.map((item, index) => (
-                <View key={`${item.friendId}-${index}`} style={styles.todayWorkoutCard}>
+                <Pressable
+                  key={`${item.friendId}-${index}`}
+                  style={styles.todayWorkoutCard}
+                  onPress={() => setSelectedProgramId(item.programId)}
+                >
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>
                       {item.friendName.charAt(0).toUpperCase()}
@@ -378,20 +393,19 @@ export default function SocialScreen() {
                     </View>
                   </View>
                   {item.status === 'pending' && (
-                    sentInviteIds.includes(item.friendId) ? (
-                      <View style={styles.inviteSentBadge}>
-                        <Text style={styles.inviteSentText}>✓ Davet Gönderildi</Text>
-                      </View>
-                    ) : (
                       <Pressable
                         style={styles.inviteButton}
-                        onPress={() => handleSendWorkoutInvite(item.friendId, item.friendName)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleSendWorkoutInvite(item.friendId, item.friendName);
+                      }}
                       >
-                        <Text style={styles.inviteButtonText}>Davet Et</Text>
+                      <Text style={styles.inviteButtonText}>
+                        {sentInviteIds.includes(item.friendId) ? '✓ Davet Gönderildi' : 'Davet Et'}
+                      </Text>
                       </Pressable>
-                    )
                   )}
-                </View>
+                </Pressable>
               ))
             )}
           </ScrollView>
@@ -552,11 +566,136 @@ export default function SocialScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Arkadaş Program Detay Modal */}
+      <Modal visible={selectedProgramId !== null} animationType="slide" transparent={false}>
+        <SafeAreaView style={styles.programModalSafeArea}>
+          <PastelBackdrop />
+          <View
+            style={[
+              styles.programModalContainer,
+              {
+                paddingTop: 16 + insets.top,
+                paddingBottom: 20 + insets.bottom,
+              },
+            ]}
+          >
+            <View style={styles.programModalHeader}>
+              <Text style={styles.programModalTitle}>
+                {selectedProgram?.title ?? 'Program Detayı'}
+              </Text>
+              <Pressable
+                style={styles.programModalCloseButton}
+                onPress={() => setSelectedProgramId(null)}
+              >
+                <Text style={styles.programModalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            {loadingProgram ? (
+              <View style={styles.programModalLoading}>
+                <ActivityIndicator color={theme.colors.text} size="large" />
+                <Text style={styles.programModalLoadingText}>Program yükleniyor...</Text>
+              </View>
+            ) : selectedProgram ? (
+              <ScrollView 
+                style={styles.programModalScroll}
+                contentContainerStyle={styles.programModalContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Program Bilgisi */}
+                <View style={styles.programInfoCard}>
+                  <View style={styles.programInfoRow}>
+                    <Text style={styles.programInfoLabel}>Fokus</Text>
+                    <Text style={styles.programInfoValue}>
+                      {selectedProgram.focus || 'Belirtilmedi'}
+                    </Text>
+                  </View>
+                  <View style={styles.programInfoRow}>
+                    <Text style={styles.programInfoLabel}>Antrenman Günleri</Text>
+                    <Text style={styles.programInfoValue}>
+                      {selectedProgram.program_workouts?.length ?? 0} gün
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Her Gün İçin Antrenman Kartı */}
+                {selectedProgram.program_workouts?.map((workout) => {
+                  const exercises = (workout.workout_blocks?.flatMap((block) => block.workout_exercises) ?? []).sort(
+                    (a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)
+                  );
+                  const dayLabel = TRAINING_DAYS.find((d) => d.key === fromDayIndex(workout.day_of_week))?.label ?? 'Gün';
+
+                  return (
+                    <View key={workout.id} style={styles.programWorkoutCard}>
+                      <View style={styles.programWorkoutHeader}>
+                        <View>
+                          <Text style={styles.programDayLabel}>{dayLabel}</Text>
+                          <Text style={styles.programWorkoutMeta}>
+                            {exercises.length} hareket
+                          </Text>
+                        </View>
+                      </View>
+
+                      {exercises.length === 0 ? (
+                        <Text style={styles.programMuted}>Henüz hareket eklenmedi</Text>
+                      ) : (
+                        <View style={styles.programExerciseList}>
+                          {exercises.map((exercise, idx) => (
+                            <View key={`${exercise.id}-${idx}`} style={styles.programExerciseRow}>
+                              {exercise.movements?.image_url ? (
+                                <Image 
+                                  source={{ uri: exercise.movements.image_url }} 
+                                  style={styles.programExerciseImage} 
+                                />
+                              ) : (
+                                <View style={styles.programExerciseImagePlaceholder}>
+                                  <Text style={styles.programExerciseImagePlaceholderText}>💪</Text>
+                                </View>
+                              )}
+                              <View style={styles.programExerciseInfo}>
+                                <Text style={styles.programExerciseName}>
+                                  {exercise.movements?.name ?? 'Bilinmeyen Hareket'}
+                                </Text>
+                                <Text style={styles.programExerciseMeta}>
+                                  {exercise.sets} set × {exercise.reps} tekrar
+                                  {exercise.rest_seconds ? ` • ${exercise.rest_seconds}s dinlenme` : ''}
+                                </Text>
+                                {exercise.movements?.equipment && (
+                                  <Text style={styles.programExerciseEquipment}>
+                                    {exercise.movements.equipment}
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <View style={styles.programModalError}>
+                <Text style={styles.programModalErrorText}>
+                  Program yüklenemedi veya görüntüleme izniniz yok.
+                </Text>
+                <Pressable
+                  style={styles.programModalErrorButton}
+                  onPress={() => setSelectedProgramId(null)}
+                >
+                  <Text style={styles.programModalErrorButtonText}>Kapat</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -995,5 +1134,190 @@ const styles = StyleSheet.create({
   inviteMessage: {
     color: theme.colors.muted,
     fontSize: 13,
+  },
+  // Program Detay Modal Stilleri
+  programModalSafeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  programModalContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    // Safe area içinde de header'ı biraz aşağıdan başlat
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+  programModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  programModalTitle: {
+    color: theme.colors.text,
+    fontSize: 24,
+    fontWeight: '800',
+    flex: 1,
+  },
+  programModalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  programModalCloseText: {
+    color: theme.colors.text,
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  programModalLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  programModalLoadingText: {
+    color: theme.colors.muted,
+    fontSize: 14,
+  },
+  programModalScroll: {
+    flex: 1,
+  },
+  programModalContent: {
+    gap: 14,
+    paddingBottom: 40,
+  },
+  programInfoCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 12,
+  },
+  programInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  programInfoLabel: {
+    color: theme.colors.muted,
+    fontWeight: '600',
+  },
+  programInfoValue: {
+    color: theme.colors.text,
+    fontWeight: '700',
+  },
+  programWorkoutCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 12,
+    shadowColor: '#a2b4d8',
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  programWorkoutHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  programDayLabel: {
+    color: theme.colors.text,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  programWorkoutMeta: {
+    color: theme.colors.muted,
+    marginTop: 2,
+  },
+  programMuted: {
+    color: theme.colors.muted,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  programExerciseList: {
+    gap: 10,
+  },
+  programExerciseRow: {
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  programExerciseImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+  },
+  programExerciseImagePlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  programExerciseImagePlaceholderText: {
+    fontSize: 24,
+  },
+  programExerciseInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  programExerciseName: {
+    color: theme.colors.text,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  programExerciseMeta: {
+    color: theme.colors.muted,
+    fontSize: 13,
+  },
+  programExerciseEquipment: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  programModalError: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    padding: 20,
+  },
+  programModalErrorText: {
+    color: theme.colors.muted,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  programModalErrorButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 14,
+    shadowColor: '#b8c7ff',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  programModalErrorButtonText: {
+    color: '#1a2a52',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });

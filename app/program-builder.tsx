@@ -23,7 +23,7 @@ import { useMovementList } from '@/services/movementService';
 import { useProgramBuilderStore } from '@/state/programBuilderStore';
 import { BuilderExercise } from '@/types/program';
 import { TrainingDay } from '@/types/profile';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 type ExerciseForm = {
   sets: string;
@@ -39,14 +39,15 @@ export default function ProgramBuilderScreen() {
   const [selectedMovementId, setSelectedMovementId] = useState<string | null>(null);
   const [selectedMovementName, setSelectedMovementName] = useState<string>('');
   const [selectedMovementImage, setSelectedMovementImage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const movementParams = useMemo(
     () => ({
-      search: '',
+      search: searchQuery,
       categoryId: null,
       equipment: null,
     }),
-    []
+    [searchQuery]
   );
 
   const { data: movements, isLoading } = useMovementList(movementParams);
@@ -62,6 +63,8 @@ export default function ProgramBuilderScreen() {
   } = useForm<ExerciseForm>({
     defaultValues: { sets: '3', reps: '10', restSeconds: '', note: '' },
   });
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const handleAddExercise = (day: TrainingDay) => {
     setPickerDay(day);
@@ -72,6 +75,17 @@ export default function ProgramBuilderScreen() {
 
   const handleSaveExercise = handleSubmit((values) => {
     if (!pickerDay || !selectedMovementId) {
+      return;
+    }
+
+    // Aynı hareket bu günde zaten var mı kontrol et
+    const existingWorkout = workouts.find((w) => w.day === pickerDay);
+    const alreadyExists = existingWorkout?.exercises.some(
+      (e) => e.movementId === selectedMovementId
+    );
+
+    if (alreadyExists) {
+      alert('Bu hareket bu güne zaten eklenmiş!');
       return;
     }
 
@@ -90,6 +104,7 @@ export default function ProgramBuilderScreen() {
     setSelectedMovementId(null);
     setSelectedMovementName('');
     setSelectedMovementImage(null);
+    setSearchQuery('');
     resetExerciseForm();
   });
 
@@ -220,45 +235,80 @@ export default function ProgramBuilderScreen() {
 
       <Modal visible={pickerDay !== null} animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <SafeAreaView style={styles.modalSafeArea}>
+          <SafeAreaView style={styles.modalSafeArea} edges={['top', 'bottom', 'left', 'right']}>
             <PastelBackdrop />
             <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Hareket seç</Text>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Hareket seç</Text>
+                <Pressable
+                  style={styles.modalCloseButton}
+                  onPress={() => {
+                    setPickerDay(null);
+                    setSelectedMovementId(null);
+                    setSelectedMovementName('');
+                    setSelectedMovementImage(null);
+                    setSearchQuery('');
+                  }}
+                >
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </Pressable>
+              </View>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Hareket ara..."
+                placeholderTextColor={theme.colors.subtle}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
               {isLoading ? (
                 <ActivityIndicator color={theme.colors.text} />
               ) : (
                 <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
-                  {movements?.map((movement) => (
-                    <Pressable
-                      key={movement.id}
-                      style={[
-                        styles.movementRow,
-                        selectedMovementId === movement.id && styles.movementRowSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedMovementId(movement.id);
-                        setSelectedMovementName(movement.name);
-                        setSelectedMovementImage(movement.image_url);
-                      }}
-                    >
-                      <View style={styles.movementRowContent}>
-                        {movement.image_url ? (
-                          <Image source={{ uri: movement.image_url }} style={styles.movementImage} />
-                        ) : (
-                          <View style={styles.movementImagePlaceholder}>
-                            <Text style={styles.movementImagePlaceholderText}>💪</Text>
+                  {movements?.map((movement) => {
+                    const currentDayWorkout = workouts.find((w) => w.day === pickerDay);
+                    const isAlreadyAdded = currentDayWorkout?.exercises.some(
+                      (e) => e.movementId === movement.id
+                    );
+
+                    return (
+                      <Pressable
+                        key={movement.id}
+                        style={[
+                          styles.movementRow,
+                          selectedMovementId === movement.id && styles.movementRowSelected,
+                          isAlreadyAdded && styles.movementRowDisabled,
+                        ]}
+                        onPress={() => {
+                          if (isAlreadyAdded) return; // Zaten eklenmişse tıklamayı engelle
+                          setSelectedMovementId(movement.id);
+                          setSelectedMovementName(movement.name);
+                          setSelectedMovementImage(movement.image_url);
+                        }}
+                        disabled={isAlreadyAdded}
+                      >
+                        <View style={styles.movementRowContent}>
+                          {movement.image_url ? (
+                            <Image source={{ uri: movement.image_url }} style={styles.movementImage} />
+                          ) : (
+                            <View style={styles.movementImagePlaceholder}>
+                              <Text style={styles.movementImagePlaceholderText}>💪</Text>
+                            </View>
+                          )}
+                          <View style={styles.movementInfo}>
+                            <Text style={[styles.movementName, isAlreadyAdded && styles.textDisabled]}>
+                              {movement.name}
+                            </Text>
+                            <Text style={styles.movementMeta}>
+                              {isAlreadyAdded ? '✓ Zaten ekli' : (movement.equipment ?? 'Ekipman yok')}
+                            </Text>
                           </View>
-                        )}
-                        <View style={styles.movementInfo}>
-                      <Text style={styles.movementName}>{movement.name}</Text>
-                      <Text style={styles.movementMeta}>{movement.equipment ?? 'Ekipman yok'}</Text>
                         </View>
-                      </View>
-                      {selectedMovementId === movement.id && (
-                        <Text style={styles.selectedBadge}>✓</Text>
-                      )}
-                    </Pressable>
-                  ))}
+                        {selectedMovementId === movement.id && !isAlreadyAdded && (
+                          <Text style={styles.selectedBadge}>✓</Text>
+                        )}
+                      </Pressable>
+                    );
+                  })}
                 </ScrollView>
               )}
               {selectedMovementId ? (
@@ -332,6 +382,7 @@ export default function ProgramBuilderScreen() {
                   setSelectedMovementId(null);
                   setSelectedMovementName('');
                   setSelectedMovementImage(null);
+                  setSearchQuery('');
                 }}
               >
                 <Text style={[styles.primaryButtonText, { color: theme.colors.text }]}>Kapat</Text>
@@ -344,7 +395,7 @@ export default function ProgramBuilderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -540,11 +591,42 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   modalTitle: {
     color: theme.colors.text,
     fontSize: 22,
     fontWeight: '800',
-    marginBottom: 4,
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  modalCloseText: {
+    color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  searchInput: {
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: theme.colors.text,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 8,
   },
   movementRow: {
     paddingVertical: 12,
@@ -559,6 +641,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primarySoft,
     borderRadius: 12,
     marginVertical: 2,
+  },
+  movementRowDisabled: {
+    opacity: 0.5,
+    backgroundColor: theme.colors.surfaceAlt,
+  },
+  textDisabled: {
+    color: theme.colors.muted,
   },
   movementRowContent: {
     flexDirection: 'row',

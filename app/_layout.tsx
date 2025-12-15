@@ -5,17 +5,23 @@ import { Platform, StatusBar } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { AppProvider } from '@/providers/AppProvider';
 import { useSessionContext } from '@/state/SessionProvider';
+import { useTheme } from '@/theme';
 
 function RootLayoutNav() {
   const { session, profile, isLoading } = useSessionContext();
   const segments = useSegments();
   const router = useRouter();
+  const { isDark } = useTheme();
 
   useEffect(() => {
     if (Platform.OS === 'android') {
       StatusBar.setTranslucent(true);
     }
   }, []);
+
+  useEffect(() => {
+    StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content');
+  }, [isDark]);
 
   useEffect(() => {
     if (isLoading) {

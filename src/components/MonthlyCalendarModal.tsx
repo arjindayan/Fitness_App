@@ -12,13 +12,13 @@ import {
   isSameDay,
 } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { useMonthlyWorkoutHistory, WorkoutDay } from '@/services/scheduleService';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -35,6 +35,8 @@ export function MonthlyCalendarModal({ visible, onClose }: Props) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   
   const { data: workoutDays = [], isLoading } = useMonthlyWorkoutHistory(year, month);
 
@@ -188,7 +190,7 @@ export function MonthlyCalendarModal({ visible, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -349,4 +351,3 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
-

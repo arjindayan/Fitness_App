@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,12 +14,13 @@ import { useTodayPlan, useUpdateScheduleStatus, useWeeklyWorkoutHistory, useSkip
 import { useSessionContext } from '@/state/SessionProvider';
 import { fetchTodayStepsWithPermission } from '@/services/healthService';
 import { ScheduleInstance } from '@/types/program';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 export default function TodayScreen() {
   const router = useRouter();
   const { profile } = useSessionContext();
-  const { data, isLoading } = useTodayPlan();
+  const userId = profile?.id ?? null;
+  const { data = [], isLoading } = useTodayPlan(userId);
   const { data: weeklyHistory = [] } = useWeeklyWorkoutHistory();
   const updateStatus = useUpdateScheduleStatus();
   const skipAndShift = useSkipAndShiftWorkouts();
@@ -28,6 +29,8 @@ export default function TodayScreen() {
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [logModalVisible, setLogModalVisible] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<ScheduleInstance | null>(null);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const handleCompleteWorkout = (item: ScheduleInstance) => {
     setSelectedWorkout(item);
@@ -200,7 +203,7 @@ export default function TodayScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -324,7 +327,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   statusLabel: {
-    color: theme.colors.text,
+    // Açık renkli buton zeminlerinde her iki temada da okunaklı sabit koyu renk
+    color: '#1a2a52',
     fontWeight: '700',
   },
   doneButton: {

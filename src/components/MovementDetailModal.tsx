@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -18,7 +18,7 @@ import { MovementProgressChart } from '@/components/MovementProgressChart';
 import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { useCreateExerciseLogMutation } from '@/services/exerciseLogService';
 import { Movement } from '@/types/movement';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -35,6 +35,8 @@ export function MovementDetailModal({ visible, movement, scheduleInstanceId, onC
   const [weight, setWeight] = useState('');
   const [note, setNote] = useState('');
   const [difficulty, setDifficulty] = useState<number | null>(null);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const createLogMutation = useCreateExerciseLogMutation();
 
@@ -216,7 +218,7 @@ export function MovementDetailModal({ visible, movement, scheduleInstanceId, onC
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -400,4 +402,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

@@ -1,15 +1,18 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { PastelBackdrop } from './PastelBackdrop';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 type Props = {
   onFinish: () => void;
 };
 
 export function SplashOverlay({ onFinish }: Props) {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const logoGradient = isDark ? ['#2c3d64', '#1f2b49'] : ['#c0e1ff', '#f6d9ff'];
   const opacity = useRef(new Animated.Value(1)).current;
   const scale = useRef(new Animated.Value(0.94)).current;
 
@@ -37,7 +40,7 @@ export function SplashOverlay({ onFinish }: Props) {
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity, transform: [{ scale }] }]}>
       <PastelBackdrop />
       <View style={styles.center}>
-        <LinearGradient colors={['#c0e1ff', '#f6d9ff']} style={styles.logo}>
+        <LinearGradient colors={logoGradient} style={styles.logo}>
           <Text style={styles.logoText}>XS</Text>
         </LinearGradient>
         <Text style={styles.tagline}>FitnessXS</Text>
@@ -46,35 +49,36 @@ export function SplashOverlay({ onFinish }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    borderRadius: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#7b8dbd',
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 12 },
-    borderWidth: 1,
-    borderColor: '#e0e6f4',
-  },
-  logoText: {
-    color: '#1a2a52',
-    fontSize: 36,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-  },
-  tagline: {
-    marginTop: 16,
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    logo: {
+      width: 120,
+      height: 120,
+      borderRadius: 80,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#7b8dbd',
+      shadowOpacity: 0.35,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 12 },
+      borderWidth: 1,
+      borderColor: '#e0e6f4',
+    },
+    logoText: {
+      color: '#1a2a52',
+      fontSize: 36,
+      fontWeight: '800',
+      letterSpacing: 1.2,
+    },
+    tagline: {
+      marginTop: 16,
+      color: theme.colors.text,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+  });

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,7 +8,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { useProgramList, fromDayIndex, useDeleteProgramMutation } from '@/services/programService';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 export default function ProgramsScreen() {
   const router = useRouter();
@@ -16,6 +16,8 @@ export default function ProgramsScreen() {
   const deleteMutation = useDeleteProgramMutation();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const swipeableRefs = useRef<Map<string, Swipeable | null>>(new Map());
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const handleDelete = async (programId: string) => {
     Alert.alert(
@@ -121,7 +123,7 @@ export default function ProgramsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -200,7 +202,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardTitle: {
-    color: theme.colors.text,
+    // Açık renkli gradient üzerinde her iki temada da okunaklı sabit koyu renk
+    color: '#1a2a52',
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: -0.1,

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -17,7 +17,7 @@ import { signOut } from '@/services/authService';
 import { upsertProfile } from '@/services/profileService';
 import { useSessionContext } from '@/state/SessionProvider';
 import { getDefaultTimezone } from '@/utils/timezone';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +38,8 @@ export default function OnboardingScreen() {
   const [fitnessLevel, setFitnessLevel] = useState<FitnessLevel | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Animasyonlar
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -273,7 +275,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,

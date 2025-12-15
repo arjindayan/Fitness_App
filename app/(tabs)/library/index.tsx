@@ -20,7 +20,7 @@ import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { MOVEMENT_CATEGORIES, MOVEMENT_EQUIPMENTS } from '@/constants/movements';
 import { useCreateMovementMutation, useMovementList } from '@/services/movementService';
 import { Movement } from '@/types/movement';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 const movementSchema = z.object({
   name: z.string().min(2, 'İsim gir'),
@@ -36,6 +36,8 @@ export default function LibraryScreen() {
   const [equipment, setEquipment] = useState<string | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
   const [selectedMovement, setSelectedMovement] = useState<Movement | null>(null);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const movementParams = useMemo(
     () => ({
@@ -269,7 +271,7 @@ export default function LibraryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,

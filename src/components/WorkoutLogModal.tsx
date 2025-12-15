@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PastelBackdrop } from './PastelBackdrop';
 import { useCreateExerciseLogMutation } from '@/services/exerciseLogService';
 import { useWorkoutExercises, WorkoutExerciseWithMovement } from '@/services/scheduleService';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 type SetEntry = {
   reps: string;
@@ -51,6 +51,8 @@ export function WorkoutLogModal({
   const createLogMutation = useCreateExerciseLogMutation();
   const [logEntries, setLogEntries] = useState<Map<string, ExerciseLogEntry>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Egzersizler yüklendiğinde entries'i initialize et
   useEffect(() => {
@@ -286,7 +288,7 @@ export function WorkoutLogModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -502,4 +504,3 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 });
-

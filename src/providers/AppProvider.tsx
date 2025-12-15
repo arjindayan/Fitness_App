@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider } from '../state/SessionProvider';
 import { SplashOverlay } from '@/components/SplashOverlay';
+import { ThemeProvider } from '@/theme';
 
 type GlobalErrorHandler = (error: any, isFatal?: boolean) => void;
 
@@ -51,14 +52,16 @@ export function AppProvider({ children }: Props) {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <SessionProvider>
-          <QueryClientProvider client={queryClient}>
-            {children ?? <Slot />}
-            {showSplash ? <SplashOverlay onFinish={() => setShowSplash(false)} /> : null}
-          </QueryClientProvider>
-        </SessionProvider>
-      </SafeAreaProvider>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <SessionProvider>
+            <QueryClientProvider client={queryClient}>
+              {children ?? <Slot />}
+              {showSplash ? <SplashOverlay onFinish={() => setShowSplash(false)} /> : null}
+            </QueryClientProvider>
+          </SessionProvider>
+        </SafeAreaProvider>
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useMovementChartData } from '@/services/exerciseLogService';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 type Props = {
   movementId: string;
@@ -22,6 +22,8 @@ const BAR_HEIGHT = 120;
 export function MovementProgressChart({ movementId, movementName }: Props) {
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('weight');
   const { data: chartData = [], isLoading } = useMovementChartData(movementId, selectedMetric);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   if (isLoading) {
     return (
@@ -140,7 +142,7 @@ export function MovementProgressChart({ movementId, movementName }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     backgroundColor: theme.colors.surface,
     borderRadius: 18,
@@ -319,4 +321,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

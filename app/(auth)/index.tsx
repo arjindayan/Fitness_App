@@ -1,16 +1,20 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { signInWithGoogle } from '@/services/authService';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const heroGradient = isDark ? ['#1b2742', '#1d2436', '#141927'] : ['#a8c0ff', '#c5b4e3', '#ffd6e0'];
+  const emailGradient = isDark ? ['#5564d6', '#3f4fa8'] : ['#a8c0ff', '#8f94fb'];
 
   const handleEmailPress = () => {
     router.push('/(auth)/email-login');
@@ -20,7 +24,6 @@ export default function WelcomeScreen() {
     try {
       setIsGoogleLoading(true);
       await signInWithGoogle();
-      // Session oluşunca app/_layout.tsx otomatik yönlendirecek
     } catch (error) {
       console.error(error);
       Alert.alert('Google girişi başarısız', 'Lütfen daha sonra tekrar deneyin.');
@@ -30,63 +33,97 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <PastelBackdrop />
       <View style={styles.container}>
-        <View style={styles.heroCard}>
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <LinearGradient
+            colors={heroGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.logoContainer}
+          >
+            <View style={styles.logoInner}>
+              <Text style={styles.logoEmoji}>💪</Text>
+            </View>
+          </LinearGradient>
+          
+          <View style={styles.brandSection}>
+            <Text style={styles.brandName}>FitnessXS</Text>
+            <Text style={styles.brandTagline}>Dönüşümün başlasın</Text>
+          </View>
+
           <View style={styles.heroTextBlock}>
-            <Text style={styles.badge}>FitnessXS</Text>
-            <Text style={styles.titleLineOne}>Güçlü hisset</Text>
-            <Text style={styles.titleLineTwo}>Zarif görün</Text>
-            <Text style={styles.copy}>
-              Kişiselleştirilmiş program, haftalık planlama, kaçırdığın günler için akıllı kaydırma.
+            <Text style={styles.heroTitle}>
+              <Text style={styles.heroTitleBold}>Güçlü</Text> hisset,{'\n'}
+              <Text style={styles.heroTitleAccent}>Zarif</Text> görün
+            </Text>
+            <Text style={styles.heroDescription}>
+              Kişiselleştirilmiş antrenman programları, akıllı planlama ve arkadaşlarınla birlikte motivasyon
             </Text>
           </View>
-          <LinearGradient colors={['#c0e1ff', '#f6d9ff']} style={styles.placeholderCircle}>
-            <View style={styles.placeholderBar} />
-          </LinearGradient>
+
+          {/* Feature Pills */}
+          <View style={styles.featureRow}>
+            <View style={styles.featurePill}>
+              <Text style={styles.featureIcon}>📅</Text>
+              <Text style={styles.featureText}>Haftalık Plan</Text>
+            </View>
+            <View style={styles.featurePill}>
+              <Text style={styles.featureIcon}>🎯</Text>
+              <Text style={styles.featureText}>Hedef Odaklı</Text>
+            </View>
+            <View style={styles.featurePill}>
+              <Text style={styles.featureIcon}>🤝</Text>
+              <Text style={styles.featureText}>Sosyal</Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Başla</Text>
-          <View style={styles.actionRow}>
-            <Pressable style={styles.primaryButton} onPress={handleEmailPress}>
-              <Text style={styles.primaryLabel}>Email ile devam et</Text>
+        {/* Login Section */}
+        <View style={styles.loginSection}>
+          <Text style={styles.loginTitle}>Hemen Başla</Text>
+          <Text style={styles.loginSubtitle}>Hesabınla giriş yap veya yeni hesap oluştur</Text>
+          
+          <View style={styles.buttonGroup}>
+            <Pressable style={styles.emailButton} onPress={handleEmailPress}>
+              <LinearGradient
+                colors={emailGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Text style={styles.emailIcon}>✉️</Text>
+              <Text style={styles.emailButtonText}>Email ile devam et</Text>
             </Pressable>
-            <Pressable style={styles.secondaryButton} onPress={handleGooglePress} disabled={isGoogleLoading}>
-              <Text style={styles.secondaryLabel}>
-                {isGoogleLoading ? 'Google bağlanıyor...' : 'Google ile devam et'}
+            
+            <Pressable 
+              style={[styles.googleButton, isGoogleLoading && styles.buttonDisabled]} 
+              onPress={handleGooglePress} 
+              disabled={isGoogleLoading}
+            >
+              <Text style={styles.googleIcon}>G</Text>
+              <Text style={styles.googleButtonText}>
+                {isGoogleLoading ? 'Bağlanıyor...' : 'Google ile devam et'}
               </Text>
             </Pressable>
           </View>
-          <View style={styles.chipRow}>
-            <View style={styles.chip}>
-              <Text style={styles.chipIcon}>📅</Text>
-              <Text style={styles.chipText}>Haftalık plan</Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipIcon}>🎯</Text>
-              <Text style={styles.chipText}>Hedef odaklı</Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipIcon}>🤝</Text>
-              <Text style={styles.chipText}>Arkadaşlarla</Text>
-            </View>
-          </View>
-        </View>
 
-        <Text style={styles.helper}>
-          Hesabın yok mu?{' '}
-          <Link href="/(auth)/email-login" style={styles.link}>
-            Hemen oluştur
-          </Link>
-        </Text>
+          <Text style={styles.termsText}>
+            Devam ederek{' '}
+            <Text style={styles.termsLink}>Kullanım Şartları</Text>
+            {' '}ve{' '}
+            <Text style={styles.termsLink}>Gizlilik Politikası</Text>
+            'nı kabul etmiş olursun.
+          </Text>
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -94,146 +131,185 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingVertical: 48,
-    justifyContent: 'space-between',
+    paddingTop: 16,
+    paddingBottom: 24,
   },
-  heroCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 24,
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#7b8dbd',
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 12 },
-  },
-  heroTextBlock: {
+  // Hero Section
+  heroSection: {
     flex: 1,
-    gap: 8,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: theme.radii.pill,
-    backgroundColor: theme.colors.primarySoft,
-    color: '#1a2a52',
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  titleLineOne: {
-    color: theme.colors.text,
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  titleLineTwo: {
-    color: '#1a2a52',
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  copy: {
-    color: theme.colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  placeholderCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 120,
-    marginLeft: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    gap: 16,
+    marginBottom: 20,
   },
-  placeholderBar: {
-    width: 50,
-    height: 8,
-    borderRadius: 12,
-    backgroundColor: '#d5d8e6',
-  },
-  sectionCard: {
-    backgroundColor: theme.colors.surfaceAlt,
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 8 },
-  },
-  sectionTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  actionRow: {
-    gap: 10,
-  },
-  primaryButton: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 16,
-    borderRadius: theme.radii.md,
+  logoContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     alignItems: 'center',
-    shadowColor: '#7b8dbd',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
+    justifyContent: 'center',
+    shadowColor: '#8f94fb',
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
   },
-  primaryLabel: {
-    color: '#1a2a52',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  secondaryButton: {
-    backgroundColor: theme.colors.inputBg,
-    paddingVertical: 16,
-    borderRadius: theme.radii.md,
+  logoInner: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    justifyContent: 'center',
   },
-  secondaryLabel: {
-    color: theme.colors.text,
-    fontSize: 16,
-    fontWeight: '600',
+  logoEmoji: {
+    fontSize: 40,
   },
-  chipRow: {
-    flexDirection: 'row',
-    gap: 10,
-    flexWrap: 'wrap',
-  },
-  chip: {
-    flexDirection: 'row',
+  brandSection: {
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    gap: 2,
   },
-  chipIcon: {
-    fontSize: 15,
-  },
-  chipText: {
+  brandName: {
+    fontSize: 32,
+    fontWeight: '900',
     color: theme.colors.text,
-    fontWeight: '600',
+    letterSpacing: -1,
+  },
+  brandTagline: {
+    fontSize: 14,
+    color: theme.colors.muted,
+    fontWeight: '500',
+  },
+  heroTextBlock: {
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  heroTitle: {
+    fontSize: 24,
+    color: theme.colors.text,
+    textAlign: 'center',
+    lineHeight: 32,
+  },
+  heroTitleBold: {
+    fontWeight: '800',
+    color: '#4a5568',
+  },
+  heroTitleAccent: {
+    fontWeight: '800',
+    color: '#8f94fb',
+  },
+  heroDescription: {
     fontSize: 13,
-  },
-  helper: {
     color: theme.colors.muted,
     textAlign: 'center',
+    lineHeight: 20,
   },
-  link: {
-    color: '#1a2a52',
+  featureRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  featurePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  featureIcon: {
+    fontSize: 12,
+  },
+  featureText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  // Login Section
+  loginSection: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
+    padding: 20,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#7b8dbd',
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  loginTitle: {
+    fontSize: 20,
     fontWeight: '800',
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  loginSubtitle: {
+    fontSize: 13,
+    color: theme.colors.muted,
+    textAlign: 'center',
+    marginTop: -6,
+  },
+  buttonGroup: {
+    gap: 10,
+  },
+  emailButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#8f94fb',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  emailIcon: {
+    fontSize: 16,
+  },
+  emailButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: theme.colors.inputBg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  googleIcon: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4285F4',
+  },
+  googleButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  termsText: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: '#8f94fb',
+    fontWeight: '600',
   },
 });

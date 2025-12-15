@@ -43,6 +43,18 @@ export type ProgramInput = {
 };
 
 export async function deleteProgram(programId: string) {
+  // Önce bu programa ait tüm schedule_instances kayıtlarını sil
+  // Böylece bugün ekranı ve takvimdeki işaretler de temizlenmiş olur
+  const { error: scheduleError } = await supabase
+    .from('schedule_instances')
+    .delete()
+    .eq('program_id', programId);
+
+  if (scheduleError) {
+    throw scheduleError;
+  }
+
+  // Ardından programın kendisini sil
   const { error } = await supabase.from('programs').delete().eq('id', programId);
 
   if (error) {
@@ -55,9 +67,14 @@ export function useDeleteProgramMutation() {
 
   return useMutation({
     mutationFn: deleteProgram,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: PROGRAM_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ['today-plan'] });
+    onSuccess: async () => {
+      // Program listesi, bugün planı ve takvim geçmişini güncelle
+      await queryClient.invalidateQueries({ queryKey: PROGRAM_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: ['today-plan'] });
+      await queryClient.invalidateQueries({ queryKey: ['workout-history'] });
+
+      // Program listesini tazeleyelim
+      await queryClient.refetchQueries({ queryKey: PROGRAM_QUERY_KEY });
     },
   });
 }
@@ -65,9 +82,27 @@ export function useDeleteProgramMutation() {
 export async function fetchPrograms(): Promise<
   (Program & { workouts: ProgramWorkout[]; training_days?: TrainingDay[] })[]
 > {
-  const { data, error } = await supabase.from('programs').select('*, program_workouts(*)').order('created_at', {
-    ascending: false,
-  });
+  // Sadece aktif kullanıcının sahip olduğu programları listele
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error('Giriş gerekiyor');
+  }
+
+  const { data, error } = await supabase
+    .from('programs')
+    .select('*, program_workouts(*)')
+    .eq('owner_id', user.id)
+    .order('created_at', {
+      ascending: false,
+    });
 
   if (error) {
     throw error;
@@ -277,6 +312,12 @@ export async function addExerciseToWorkout(payload: AddExercisePayload) {
     blockId = newBlock.id;
   }
 
+  // Mevcut exercise'lerin sayısını al (order_index için)
+  const { count } = await supabase
+    .from('workout_exercises')
+    .select('*', { count: 'exact', head: true })
+    .eq('block_id', blockId);
+
   const { data, error } = await supabase
     .from('workout_exercises')
     .insert({
@@ -286,6 +327,7 @@ export async function addExerciseToWorkout(payload: AddExercisePayload) {
       reps: payload.reps,
       rest_seconds: payload.restSeconds ?? null,
       note: payload.note ?? null,
+      order_index: count ?? 0,
     })
     .select('*')
     .single();

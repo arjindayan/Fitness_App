@@ -1,9 +1,10 @@
 import { format, startOfWeek, addDays, isToday, isBefore, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { WorkoutDay } from '@/services/scheduleService';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 type Props = {
   workoutDays: WorkoutDay[];
@@ -15,6 +16,8 @@ const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 export function WeeklyStreak({ workoutDays, onPress }: Props) {
   const today = new Date();
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Hafta günlerini oluştur
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -84,7 +87,7 @@ export function WeeklyStreak({ workoutDays, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     backgroundColor: theme.colors.surface,
     borderRadius: 18,
@@ -185,4 +188,3 @@ const styles = StyleSheet.create({
     bottom: -2,
   },
 });
-

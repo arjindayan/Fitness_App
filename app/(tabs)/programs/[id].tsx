@@ -23,7 +23,7 @@ import { fromDayIndex } from '@/services/programService';
 import { PastelBackdrop } from '@/components/PastelBackdrop';
 import { useAddExerciseMutation, useProgramDetail, useUpdateProgramMutation, useDeleteExerciseMutation } from '@/services/programService';
 import { useMovementList } from '@/services/movementService';
-import { theme } from '@/theme';
+import { Theme, useTheme } from '@/theme';
 
 type ExerciseFormValues = {
   sets: string;
@@ -40,6 +40,8 @@ export default function ProgramDetailScreen() {
   const addExercise = useAddExerciseMutation(programId ?? '');
   const updateProgram = useUpdateProgramMutation(programId ?? '');
   const deleteExercise = useDeleteExerciseMutation(programId ?? '');
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [selectedMovement, setSelectedMovement] = useState<{ id: string; name: string } | null>(null);
@@ -78,8 +80,10 @@ export default function ProgramDetailScreen() {
       setSelectedMovement(null);
       setSelectedWorkoutId(null);
       Alert.alert('Başarılı', 'Hareket eklendi!');
-    } catch (error) {
-      Alert.alert('Hata', 'Hareket eklenemedi');
+    } catch (error: any) {
+      console.error('Hareket ekleme hatası:', error);
+      const errorMessage = error?.message || error?.error?.message || 'Hareket eklenemedi';
+      Alert.alert('Hata', errorMessage);
     }
   });
 
@@ -199,6 +203,7 @@ export default function ProgramDetailScreen() {
                     onPress={() => {
                       setSelectedWorkoutId(item.id);
                       setSelectedMovement(null);
+                      setSearch(''); // Arama alanını temizle
                     }}
                   >
                     <Text style={styles.addButtonText}>+ Hareket</Text>
@@ -257,6 +262,7 @@ export default function ProgramDetailScreen() {
                     onPress={() => {
                       setSelectedWorkoutId(null);
                       setSelectedMovement(null);
+                      setSearch('');
                       reset();
                     }}
                   >
@@ -399,7 +405,7 @@ export default function ProgramDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -621,12 +627,14 @@ const styles = StyleSheet.create({
   },
   search: {
     backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.radii.md,
-    padding: 10,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     color: theme.colors.text,
+    fontSize: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   movementRow: {
     paddingVertical: 10,
