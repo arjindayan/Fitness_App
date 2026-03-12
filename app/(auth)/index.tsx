@@ -13,8 +13,8 @@ export default function WelcomeScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const heroGradient = isDark ? ['#1b2742', '#1d2436', '#141927'] : ['#a8c0ff', '#c5b4e3', '#ffd6e0'];
-  const emailGradient = isDark ? ['#5564d6', '#3f4fa8'] : ['#a8c0ff', '#8f94fb'];
+  const heroGradient = isDark ? ['#1b2742', '#1d2436', '#141927'] as const : ['#a8c0ff', '#c5b4e3', '#ffd6e0'] as const;
+  const emailGradient = isDark ? ['#5564d6', '#3f4fa8'] as const : ['#a8c0ff', '#8f94fb'] as const;
 
   const handleEmailPress = () => {
     router.push('/(auth)/email-login');

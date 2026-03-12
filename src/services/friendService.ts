@@ -10,10 +10,10 @@ const FRIENDSHIPS_KEY = ['friendships'];
 // Kullanıcıyı user_code ile ara
 export async function searchUserByCode(userCode: string): Promise<Profile | null> {
   const searchCode = userCode.toUpperCase().trim();
-  
+
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, display_name, user_code, avatar_url, goal')
+    .select('id, display_name, user_code, avatar_url')
     .eq('user_code', searchCode)
     .maybeSingle();
 
@@ -310,7 +310,7 @@ export async function fetchFriendships(): Promise<Friendship[]> {
   for (const friendship of friendships) {
     const { data: friendProfile } = await supabase
       .from('profiles')
-      .select('id, display_name, user_code, avatar_url, goal')
+      .select('id, display_name, user_code, avatar_url')
       .eq('id', friendship.friend_id)
       .single();
 
@@ -536,14 +536,14 @@ export async function fetchFriendsTodayWorkouts(): Promise<FriendTodayWorkout[]>
 
   // Sonuçları birleştir
   const results: FriendTodayWorkout[] = [];
-  
+
   for (const schedule of schedules) {
     const program = programMap.get(schedule.program_id);
     if (!program) continue;
-    
+
     const ownerId = program.owner_id;
     if (!friendIds.includes(ownerId)) continue;
-    
+
     const profile = profileMap.get(ownerId);
     if (!profile) continue;
 

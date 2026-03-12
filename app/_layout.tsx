@@ -47,7 +47,7 @@ function RootLayoutNav() {
     } else {
       // Session var ve onboarding tamamlanmış
       // Onboarding ekranındayken yönlendirme yapma (kullanıcı profil düzenliyor olabilir)
-      if (inAuthGroup || segments[0] === 'index' || segments.length === 0) {
+      if (inAuthGroup || segments[0] === 'index' || !segments[0]) {
         router.replace('/(tabs)/today');
       }
       // inOnboardingGroup kontrolünü kaldırdık - kullanıcı istediği zaman onboarding'e gidebilir

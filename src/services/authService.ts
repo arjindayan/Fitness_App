@@ -3,6 +3,11 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { supabase } from '../lib/supabase';
 
+type EmailAuthPayload = {
+  email: string;
+  password: string;
+};
+
 // Finalize any pending auth sessions (needed on iOS/Safari when returning to the app)
 WebBrowser.maybeCompleteAuthSession();
 
@@ -42,7 +47,7 @@ export async function signInWithGoogle() {
     provider: 'google',
     options: {
       skipBrowserRedirect: true,
-      redirectTo, 
+      redirectTo,
     },
   });
 
@@ -83,7 +88,7 @@ export async function signInWithGoogle() {
 // WebBrowser bize hazır params vermez, URL string verir. Bunu parçalamak için:
 function extractParamsFromUrl(url: string): { [key: string]: string } {
   const params: { [key: string]: string } = {};
-  
+
   // Query string (?) ve Fragment (#) kısımlarını kontrol et
   const queryString = url.split('?')[1];
   const fragmentString = url.split('#')[1];

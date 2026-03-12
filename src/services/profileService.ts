@@ -4,8 +4,6 @@ import { Profile, TrainingDay } from '../types/profile';
 export type ProfileInput = {
   displayName: string;
   email: string;
-  goal: string;
-  goalDescription?: string;
   timezone: string;
   trainingDays: TrainingDay[];
   avatarUrl?: string | null;
@@ -24,8 +22,6 @@ export async function upsertProfile(userId: string, payload: ProfileInput) {
         id: userId,
         display_name: payload.displayName,
         mail: payload.email,
-        goal: payload.goal,
-        goal_description: payload.goalDescription ?? null,
         timezone: payload.timezone,
         training_days: payload.trainingDays,
         onboarding_complete: payload.onboardingComplete ?? true,

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PastelBackdrop } from './PastelBackdrop';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { useCreateExerciseLogMutation } from '@/services/exerciseLogService';
 import { useWorkoutExercises, WorkoutExerciseWithMovement } from '@/services/scheduleService';
 import { Theme, useTheme } from '@/theme';
@@ -185,7 +185,7 @@ export function WorkoutLogModal({
               {exercises.map((exercise) => {
                 const entry = getEntry(exercise.id);
                 if (!entry) return null;
-                
+
                 const localImage = getMovementImage(exercise.movements?.name);
                 return (
                   <View key={exercise.id} style={styles.exerciseCard}>

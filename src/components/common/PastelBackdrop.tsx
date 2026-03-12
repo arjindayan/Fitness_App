@@ -6,9 +6,9 @@ import { useTheme } from '@/theme';
 export function PastelBackdrop() {
   const { isDark } = useTheme();
 
-  const gradientColors = isDark ? ['#0f1627', '#0c1323', '#0f1b32'] : ['#fdf7ff', '#eef4ff', '#f6fdff'];
-  const pinkGlow = isDark ? ['rgba(255, 147, 197, 0.14)', 'transparent'] : ['rgba(255, 194, 222, 0.4)', 'transparent'];
-  const blueGlow = isDark ? ['rgba(123, 173, 255, 0.18)', 'transparent'] : ['rgba(183, 214, 255, 0.45)', 'transparent'];
+  const gradientColors = isDark ? ['#0f1627', '#0c1323', '#0f1b32'] as const : ['#fdf7ff', '#eef4ff', '#f6fdff'] as const;
+  const pinkGlow = isDark ? ['rgba(255, 147, 197, 0.14)', 'transparent'] as const : ['rgba(255, 194, 222, 0.4)', 'transparent'] as const;
+  const blueGlow = isDark ? ['rgba(123, 173, 255, 0.18)', 'transparent'] as const : ['rgba(183, 214, 255, 0.45)', 'transparent'] as const;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>

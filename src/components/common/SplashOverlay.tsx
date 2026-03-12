@@ -12,7 +12,7 @@ type Props = {
 export function SplashOverlay({ onFinish }: Props) {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const logoGradient = isDark ? ['#2c3d64', '#1f2b49'] : ['#c0e1ff', '#f6d9ff'];
+  const logoGradient = isDark ? ['#2c3d64', '#1f2b49'] as const : ['#c0e1ff', '#f6d9ff'] as const;
   const opacity = useRef(new Animated.Value(1)).current;
   const scale = useRef(new Animated.Value(0.94)).current;
 

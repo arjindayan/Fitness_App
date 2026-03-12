@@ -1,14 +1,14 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Easing,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,28 +19,14 @@ import { useSessionContext } from '@/state/SessionProvider';
 import { getDefaultTimezone } from '@/utils/timezone';
 import { Theme, useTheme } from '@/theme';
 
-const { width } = Dimensions.get('window');
-
-type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
-
-const FITNESS_LEVELS: { key: FitnessLevel; label: string; emoji: string; description: string }[] = [
-  { key: 'beginner', label: 'Başlangıç', emoji: '🌱', description: '0-6 ay deneyim' },
-  { key: 'intermediate', label: 'Orta', emoji: '💪', description: '6 ay - 2 yıl deneyim' },
-  { key: 'advanced', label: 'İleri', emoji: '🔥', description: '2+ yıl deneyim' },
-];
-
 export default function OnboardingScreen() {
   const router = useRouter();
   const { session, refreshProfile, profile } = useSessionContext();
 
-  // Mevcut profil varsa değerleri yükle, yoksa boş başlat
   const isEditing = profile?.onboarding_complete ?? false;
 
-  const [step, setStep] = useState(isEditing ? 3 : 1); // Düzenleme modundaysa direkt 3. adıma git
+  const [step, setStep] = useState(isEditing ? 2 : 1);
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
-  const [fitnessLevel, setFitnessLevel] = useState<FitnessLevel | null>(
-    (profile?.goal as FitnessLevel) || null
-  );
   const [heightCm, setHeightCm] = useState(
     profile?.height_cm ? profile.height_cm.toString() : ''
   );
@@ -52,7 +38,6 @@ export default function OnboardingScreen() {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  // Animasyonlar
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const successScale = useRef(new Animated.Value(0)).current;
@@ -96,12 +81,7 @@ export default function OnboardingScreen() {
     animateToNextStep(2);
   };
 
-  const handleLevelSelect = (level: FitnessLevel) => {
-    setFitnessLevel(level);
-  };
-
   const handleHeightWeightSubmit = () => {
-    // Boy ve kilo isteğe bağlı, sadece girilmişse validate et
     if (heightCm.trim()) {
       const height = parseFloat(heightCm);
       if (!height || height < 100 || height > 250) {
@@ -118,7 +98,6 @@ export default function OnboardingScreen() {
       }
     }
 
-    // Validation geçtiyse devam et
     handleComplete();
   };
 
@@ -128,29 +107,17 @@ export default function OnboardingScreen() {
       return;
     }
 
-    // Yeni kullanıcılar için fitness level zorunlu
-    if (!isEditing && !fitnessLevel) {
-      Alert.alert('Hata', 'Lütfen fitness seviyesini seç');
-      return;
-    }
-
-    // Düzenleme modunda fitness level yoksa mevcut değeri koru
-    const finalFitnessLevel = fitnessLevel || (profile?.goal as FitnessLevel) || 'beginner';
-
     setIsSubmitting(true);
 
     try {
-      // Boy ve kilo isteğe bağlı, sadece girilmişse parse et
       const height = heightCm.trim() ? parseFloat(heightCm) : null;
       const weight = weightKg.trim() ? parseFloat(weightKg) : null;
 
       await upsertProfile(session.user.id, {
         displayName: displayName.trim() || profile?.display_name || 'Kullanıcı',
         email: session.user.email ?? '',
-        goal: finalFitnessLevel, // fitness level'ı goal olarak kullan
-        goalDescription: FITNESS_LEVELS.find(l => l.key === finalFitnessLevel)?.description ?? profile?.goal_description ?? '',
-        timezone: profile?.timezone ?? getDefaultTimezone(), // Mevcut timezone'u koru
-        trainingDays: profile?.training_days ?? [], // Mevcut training days'i koru
+        timezone: profile?.timezone ?? getDefaultTimezone(),
+        trainingDays: profile?.training_days ?? [],
         onboardingComplete: true,
         heightCm: height ? Math.round(height) : null,
         weightKg: weight ? parseFloat(weight.toFixed(2)) : null,
@@ -158,13 +125,11 @@ export default function OnboardingScreen() {
 
       await refreshProfile();
 
-      // Düzenleme modundaysa profil sayfasına dön
       if (isEditing) {
         router.replace('/(tabs)/profile');
         return;
       }
 
-      // Başarı animasyonu (sadece yeni kullanıcılar için)
       setShowSuccess(true);
       Animated.parallel([
         Animated.spring(successScale, {
@@ -186,6 +151,7 @@ export default function OnboardingScreen() {
     } catch (error) {
       console.error(error);
       Alert.alert('Profili kaydederken hata oluştu', 'Tekrar deneyin.');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -220,7 +186,7 @@ export default function OnboardingScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: step === 1 ? '33%' : step === 2 ? '66%' : '100%' }]} />
+            <View style={[styles.progressFill, { width: step === 1 ? '50%' : '100%' }]} />
           </View>
           <Pressable
             onPress={async () => {
@@ -244,7 +210,7 @@ export default function OnboardingScreen() {
         >
           {step === 1 ? (
             <>
-              <Text style={styles.stepLabel}>Adım 1/3</Text>
+              <Text style={styles.stepLabel}>Adım 1/2</Text>
               <Text style={styles.title}>{isEditing ? 'İsmini güncelle' : 'Sana nasıl hitap edelim?'}</Text>
               <Text style={styles.subtitle}>İsmini veya takma adını yaz</Text>
 
@@ -270,59 +236,9 @@ export default function OnboardingScreen() {
                 <Text style={styles.primaryLabel}>Devam et</Text>
               </Pressable>
             </>
-          ) : step === 2 ? (
-            <>
-              <Text style={styles.stepLabel}>Adım 2/3</Text>
-              <Text style={styles.title}>{isEditing ? 'Fitness seviyeni güncelle' : 'Fitness seviyen ne?'}</Text>
-              <Text style={styles.subtitle}>Sana uygun programlar önermemize yardımcı olur</Text>
-
-              <View style={styles.levelsContainer}>
-                {FITNESS_LEVELS.map((level) => (
-                  <Pressable
-                    key={level.key}
-                    style={[
-                      styles.levelCard,
-                      fitnessLevel === level.key && styles.levelCardActive,
-                    ]}
-                    onPress={() => handleLevelSelect(level.key)}
-                  >
-                    <Text style={styles.levelEmoji}>{level.emoji}</Text>
-                    <View style={styles.levelInfo}>
-                      <Text style={[
-                        styles.levelLabel,
-                        fitnessLevel === level.key && styles.levelLabelActive,
-                      ]}>
-                        {level.label}
-                      </Text>
-                      <Text style={styles.levelDescription}>{level.description}</Text>
-                    </View>
-                    {fitnessLevel === level.key && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </Pressable>
-                ))}
-              </View>
-
-              <View style={styles.buttonRow}>
-                <Pressable style={styles.backButton} onPress={() => animateToNextStep(1)}>
-                  <Text style={styles.backLabel}>← Geri</Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.primaryButton,
-                    styles.completeButton,
-                    (!fitnessLevel || isSubmitting) && styles.primaryButtonDisabled,
-                  ]}
-                  onPress={() => animateToNextStep(3)}
-                  disabled={!fitnessLevel || isSubmitting}
-                >
-                  <Text style={styles.primaryLabel}>Devam et</Text>
-                </Pressable>
-              </View>
-            </>
           ) : (
             <>
-              <Text style={styles.stepLabel}>Adım 3/3</Text>
+              <Text style={styles.stepLabel}>Adım 2/2</Text>
               <Text style={styles.title}>{isEditing ? 'Fiziksel bilgilerini güncelle' : 'Fiziksel bilgilerin'}</Text>
               <Text style={styles.subtitle}>Boy ve kilonu gir (isteğe bağlı)</Text>
 
@@ -359,7 +275,7 @@ export default function OnboardingScreen() {
                     if (isEditing) {
                       router.replace('/(tabs)/profile');
                     } else {
-                      animateToNextStep(2);
+                      animateToNextStep(1);
                     }
                   }}
                 >
@@ -482,51 +398,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
   },
-  levelsContainer: {
-    gap: 12,
-  },
-  levelCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 18,
-    padding: 18,
-    borderWidth: 2,
-    borderColor: theme.colors.border,
-    gap: 16,
-    shadowColor: '#a2b4d8',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-  },
-  levelCardActive: {
-    borderColor: theme.colors.primary,
-    backgroundColor: 'rgba(184, 199, 255, 0.15)',
-  },
-  levelEmoji: {
-    fontSize: 36,
-  },
-  levelInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  levelLabel: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  levelLabelActive: {
-    color: theme.colors.primary,
-  },
-  levelDescription: {
-    color: theme.colors.muted,
-    fontSize: 14,
-  },
-  checkmark: {
-    color: theme.colors.primary,
-    fontSize: 24,
-    fontWeight: '700',
-  },
   buttonRow: {
     flexDirection: 'row',
     gap: 12,
@@ -544,7 +415,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.text,
     fontWeight: '600',
   },
-  // Success screen
   successContainer: {
     flex: 1,
     justifyContent: 'center',

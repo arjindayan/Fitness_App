@@ -53,10 +53,9 @@ export default function ProgramsScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Programların</Text>
-            <Text style={styles.subtitle}>Zarif, dengeli ve senin için tasarlandı</Text>
           </View>
           <Pressable style={styles.addButton} onPress={() => router.push('/program-builder')}>
-            <LinearGradient colors={['#c0e1ff', '#f6d9ff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.addButtonGradient} />
+            <LinearGradient colors={['#c0e1ff', '#f6d9ff'] as const} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.addButtonGradient} />
             <Text style={styles.addButtonText}>Yeni Program</Text>
           </Pressable>
         </View>
@@ -96,7 +95,7 @@ export default function ProgramsScreen() {
                     onPress={() => router.push(`/(tabs)/programs/${item.id}`)}
                   >
                     <LinearGradient
-                      colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.78)']}
+                      colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.78)'] as const}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={StyleSheet.absoluteFillObject}

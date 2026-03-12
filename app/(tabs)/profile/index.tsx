@@ -8,18 +8,7 @@ import { signOut } from '@/services/authService';
 import { useSessionContext } from '@/state/SessionProvider';
 import { Theme, useTheme } from '@/theme';
 
-// Goal değerini Türkçe'ye çevir
-function getGoalLabel(goal: string | null | undefined): string {
-  if (!goal) return '-';
 
-  const goalMap: { [key: string]: string } = {
-    'beginner': 'Başlangıç',
-    'intermediate': 'Orta',
-    'advanced': 'İleri',
-  };
-
-  return goalMap[goal.toLowerCase()] || goal;
-}
 
 export default function ProfileScreen() {
   const { profile } = useSessionContext();
@@ -43,8 +32,6 @@ export default function ProfileScreen() {
       <View style={styles.container}>
         <Text style={styles.title}>{profile?.display_name ?? 'Profil'}</Text>
         <View style={styles.card}>
-          <Text style={styles.label}>Fitness Seviyesi</Text>
-          <Text style={styles.value}>{getGoalLabel(profile?.goal)}</Text>
           {profile?.height_cm && (
             <>
               <Text style={styles.label}>Boy</Text>

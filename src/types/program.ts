@@ -66,13 +66,15 @@ export type ScheduleInstance = {
   scheduled_date: string;
   status: 'pending' | 'done' | 'skipped';
   auto_shifted_from?: string | null;
-  program_workouts?: {
-    title: string;
-    day_of_week: number;
-  };
-  programs?: {
-    title: string;
-  };
+  // Supabase join sonucu tekil nesne veya dizi olabilir
+  program_workouts?:
+  | { title: string; day_of_week: number }
+  | { title: string; day_of_week: number }[]
+  | null;
+  programs?:
+  | { title: string; owner_id?: string }
+  | { title: string; owner_id?: string }[]
+  | null;
 };
 
 // Egzersiz log kaydı

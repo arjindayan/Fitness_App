@@ -20,7 +20,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="today"
+        name="today/index"
         options={{
           title: 'Bugün',
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar" color={color} size={size} />,
@@ -48,10 +48,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="profile/index"
         options={{
           title: 'Profil',
           tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="programs/[id]"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

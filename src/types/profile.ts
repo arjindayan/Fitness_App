@@ -12,8 +12,6 @@ export type Profile = {
   display_name: string | null;
   avatar_url: string | null;
   mail: string | null;
-  goal: string | null;
-  goal_description: string | null;
   timezone: string | null;
   training_days: TrainingDay[];
   onboarding_complete: boolean;
@@ -59,6 +57,5 @@ export type Friendship = {
     display_name: string | null;
     user_code: string | null;
     avatar_url: string | null;
-    goal: string | null;
   };
 };

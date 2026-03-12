@@ -502,9 +502,6 @@ export default function SocialScreen() {
                   <View style={styles.friendInfo}>
                     <Text style={styles.friendName}>{item.friend?.display_name ?? 'Kullanıcı'}</Text>
                     <Text style={styles.friendCode}>{item.friend?.user_code}</Text>
-                    {item.friend?.goal && (
-                      <Text style={styles.friendGoal}>🎯 {item.friend.goal}</Text>
-                    )}
                   </View>
                   <Pressable
                     style={styles.removeButton}
@@ -955,12 +952,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   friendCode: {
     color: theme.colors.muted,
     fontSize: 12,
-  },
-  friendGoal: {
-    color: theme.colors.primary,
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
   },
   removeButton: {
     width: 32,
