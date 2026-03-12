@@ -20,10 +20,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { fromDayIndex } from '@/services/programService';
 
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { useAddExerciseMutation, useProgramDetail, useUpdateProgramMutation, useDeleteExerciseMutation } from '@/services/programService';
 import { useMovementList } from '@/services/movementService';
 import { Theme, useTheme } from '@/theme';
+import { getMovementImage } from '@/utils/movementImages';
 
 type ExerciseFormValues = {
   sets: string;
@@ -46,7 +47,7 @@ export default function ProgramDetailScreen() {
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [selectedMovement, setSelectedMovement] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
-  
+
   // Düzenleme state'leri
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -214,35 +215,40 @@ export default function ProgramDetailScreen() {
                   <Text style={styles.muted}>Henüz hareket eklenmedi</Text>
                 ) : (
                   <View style={styles.exerciseList}>
-                    {exercises.map((exercise, idx) => (
-                      <View key={`${exercise.id}-${idx}`} style={styles.exerciseRow}>
-                        {exercise.movements?.image_url ? (
-                          <Image source={{ uri: exercise.movements.image_url }} style={styles.exerciseImage} />
-                        ) : (
-                          <View style={styles.exerciseImagePlaceholder}>
-                            <Text style={styles.exerciseImagePlaceholderText}>💪</Text>
-                          </View>
-                        )}
-                        <View style={styles.exerciseInfo}>
-                          <Text style={styles.exerciseName}>
-                            {exercise.movements?.name ?? 'Bilinmeyen Hareket'}
-                          </Text>
-                          <Text style={styles.exerciseMeta}>
-                            {exercise.sets} set × {exercise.reps} tekrar
-                            {exercise.rest_seconds ? ` • ${exercise.rest_seconds}s dinlenme` : ''}
-                          </Text>
-                          {exercise.movements?.equipment && (
-                            <Text style={styles.exerciseEquipment}>{exercise.movements.equipment}</Text>
+                    {exercises.map((exercise, idx) => {
+                      const localImage = getMovementImage(exercise.movements?.name);
+                      return (
+                        <View key={`${exercise.id}-${idx}`} style={styles.exerciseRow}>
+                          {localImage ? (
+                            <Image source={localImage} style={styles.exerciseImage} />
+                          ) : exercise.movements?.image_url ? (
+                            <Image source={{ uri: exercise.movements.image_url }} style={styles.exerciseImage} />
+                          ) : (
+                            <View style={styles.exerciseImagePlaceholder}>
+                              <Text style={styles.exerciseImagePlaceholderText}>💪</Text>
+                            </View>
                           )}
+                          <View style={styles.exerciseInfo}>
+                            <Text style={styles.exerciseName}>
+                              {exercise.movements?.name ?? 'Bilinmeyen Hareket'}
+                            </Text>
+                            <Text style={styles.exerciseMeta}>
+                              {exercise.sets} set × {exercise.reps} tekrar
+                              {exercise.rest_seconds ? ` • ${exercise.rest_seconds}s dinlenme` : ''}
+                            </Text>
+                            {exercise.movements?.equipment && (
+                              <Text style={styles.exerciseEquipment}>{exercise.movements.equipment}</Text>
+                            )}
+                          </View>
+                          <Pressable
+                            style={styles.deleteExerciseButton}
+                            onPress={() => handleDeleteExercise(exercise.id, exercise.movements?.name ?? 'Hareket')}
+                          >
+                            <Text style={styles.deleteExerciseText}>✕</Text>
+                          </Pressable>
                         </View>
-                        <Pressable
-                          style={styles.deleteExerciseButton}
-                          onPress={() => handleDeleteExercise(exercise.id, exercise.movements?.name ?? 'Hareket')}
-                        >
-                          <Text style={styles.deleteExerciseText}>✕</Text>
-                        </Pressable>
-                      </View>
-                    ))}
+                      );
+                    })}
                   </View>
                 )}
               </View>

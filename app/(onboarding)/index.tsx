@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { signOut } from '@/services/authService';
 import { upsertProfile } from '@/services/profileService';
 import { useSessionContext } from '@/state/SessionProvider';
@@ -31,11 +31,22 @@ const FITNESS_LEVELS: { key: FitnessLevel; label: string; emoji: string; descrip
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { session, refreshProfile } = useSessionContext();
-  
-  const [step, setStep] = useState(1);
-  const [displayName, setDisplayName] = useState('');
-  const [fitnessLevel, setFitnessLevel] = useState<FitnessLevel | null>(null);
+  const { session, refreshProfile, profile } = useSessionContext();
+
+  // Mevcut profil varsa değerleri yükle, yoksa boş başlat
+  const isEditing = profile?.onboarding_complete ?? false;
+
+  const [step, setStep] = useState(isEditing ? 3 : 1); // Düzenleme modundaysa direkt 3. adıma git
+  const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
+  const [fitnessLevel, setFitnessLevel] = useState<FitnessLevel | null>(
+    (profile?.goal as FitnessLevel) || null
+  );
+  const [heightCm, setHeightCm] = useState(
+    profile?.height_cm ? profile.height_cm.toString() : ''
+  );
+  const [weightKg, setWeightKg] = useState(
+    profile?.weight_kg ? profile.weight_kg.toString() : ''
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const { theme } = useTheme();
@@ -89,28 +100,71 @@ export default function OnboardingScreen() {
     setFitnessLevel(level);
   };
 
+  const handleHeightWeightSubmit = () => {
+    // Boy ve kilo isteğe bağlı, sadece girilmişse validate et
+    if (heightCm.trim()) {
+      const height = parseFloat(heightCm);
+      if (!height || height < 100 || height > 250) {
+        Alert.alert('Hata', 'Boy 100-250 cm arasında olmalı');
+        return;
+      }
+    }
+
+    if (weightKg.trim()) {
+      const weight = parseFloat(weightKg);
+      if (!weight || weight < 30 || weight > 300) {
+        Alert.alert('Hata', 'Kilo 30-300 kg arasında olmalı');
+        return;
+      }
+    }
+
+    // Validation geçtiyse devam et
+    handleComplete();
+  };
+
   const handleComplete = async () => {
-    if (!session?.user || !fitnessLevel) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldur');
+    if (!session?.user) {
+      Alert.alert('Hata', 'Oturum bulunamadı');
       return;
     }
+
+    // Yeni kullanıcılar için fitness level zorunlu
+    if (!isEditing && !fitnessLevel) {
+      Alert.alert('Hata', 'Lütfen fitness seviyesini seç');
+      return;
+    }
+
+    // Düzenleme modunda fitness level yoksa mevcut değeri koru
+    const finalFitnessLevel = fitnessLevel || (profile?.goal as FitnessLevel) || 'beginner';
 
     setIsSubmitting(true);
 
     try {
+      // Boy ve kilo isteğe bağlı, sadece girilmişse parse et
+      const height = heightCm.trim() ? parseFloat(heightCm) : null;
+      const weight = weightKg.trim() ? parseFloat(weightKg) : null;
+
       await upsertProfile(session.user.id, {
-        displayName: displayName.trim(),
+        displayName: displayName.trim() || profile?.display_name || 'Kullanıcı',
         email: session.user.email ?? '',
-        goal: fitnessLevel, // fitness level'ı goal olarak kullan
-        goalDescription: FITNESS_LEVELS.find(l => l.key === fitnessLevel)?.description ?? '',
-        timezone: getDefaultTimezone(),
-        trainingDays: [], // Boş başlat, sonra program eklerken seçilecek
+        goal: finalFitnessLevel, // fitness level'ı goal olarak kullan
+        goalDescription: FITNESS_LEVELS.find(l => l.key === finalFitnessLevel)?.description ?? profile?.goal_description ?? '',
+        timezone: profile?.timezone ?? getDefaultTimezone(), // Mevcut timezone'u koru
+        trainingDays: profile?.training_days ?? [], // Mevcut training days'i koru
         onboardingComplete: true,
+        heightCm: height ? Math.round(height) : null,
+        weightKg: weight ? parseFloat(weight.toFixed(2)) : null,
       });
 
       await refreshProfile();
 
-      // Başarı animasyonu
+      // Düzenleme modundaysa profil sayfasına dön
+      if (isEditing) {
+        router.replace('/(tabs)/profile');
+        return;
+      }
+
+      // Başarı animasyonu (sadece yeni kullanıcılar için)
       setShowSuccess(true);
       Animated.parallel([
         Animated.spring(successScale, {
@@ -166,7 +220,7 @@ export default function OnboardingScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: step === 1 ? '50%' : '100%' }]} />
+            <View style={[styles.progressFill, { width: step === 1 ? '33%' : step === 2 ? '66%' : '100%' }]} />
           </View>
           <Pressable
             onPress={async () => {
@@ -190,8 +244,8 @@ export default function OnboardingScreen() {
         >
           {step === 1 ? (
             <>
-              <Text style={styles.stepLabel}>Adım 1/2</Text>
-              <Text style={styles.title}>Sana nasıl hitap edelim?</Text>
+              <Text style={styles.stepLabel}>Adım 1/3</Text>
+              <Text style={styles.title}>{isEditing ? 'İsmini güncelle' : 'Sana nasıl hitap edelim?'}</Text>
               <Text style={styles.subtitle}>İsmini veya takma adını yaz</Text>
 
               <View style={styles.inputCard}>
@@ -216,10 +270,10 @@ export default function OnboardingScreen() {
                 <Text style={styles.primaryLabel}>Devam et</Text>
               </Pressable>
             </>
-          ) : (
+          ) : step === 2 ? (
             <>
-              <Text style={styles.stepLabel}>Adım 2/2</Text>
-              <Text style={styles.title}>Fitness seviyen ne?</Text>
+              <Text style={styles.stepLabel}>Adım 2/3</Text>
+              <Text style={styles.title}>{isEditing ? 'Fitness seviyeni güncelle' : 'Fitness seviyen ne?'}</Text>
               <Text style={styles.subtitle}>Sana uygun programlar önermemize yardımcı olur</Text>
 
               <View style={styles.levelsContainer}>
@@ -259,11 +313,69 @@ export default function OnboardingScreen() {
                     styles.completeButton,
                     (!fitnessLevel || isSubmitting) && styles.primaryButtonDisabled,
                   ]}
-                  onPress={handleComplete}
+                  onPress={() => animateToNextStep(3)}
                   disabled={!fitnessLevel || isSubmitting}
                 >
+                  <Text style={styles.primaryLabel}>Devam et</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.stepLabel}>Adım 3/3</Text>
+              <Text style={styles.title}>{isEditing ? 'Fiziksel bilgilerini güncelle' : 'Fiziksel bilgilerin'}</Text>
+              <Text style={styles.subtitle}>Boy ve kilonu gir (isteğe bağlı)</Text>
+
+              <View style={styles.inputCard}>
+                <TextInput
+                  style={styles.nameInput}
+                  placeholder="Boy (cm)"
+                  placeholderTextColor={theme.colors.subtle}
+                  value={heightCm}
+                  onChangeText={setHeightCm}
+                  keyboardType="numeric"
+                  autoFocus
+                  returnKeyType="next"
+                />
+              </View>
+
+              <View style={styles.inputCard}>
+                <TextInput
+                  style={styles.nameInput}
+                  placeholder="Kilo (kg)"
+                  placeholderTextColor={theme.colors.subtle}
+                  value={weightKg}
+                  onChangeText={setWeightKg}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={handleHeightWeightSubmit}
+                />
+              </View>
+
+              <View style={styles.buttonRow}>
+                <Pressable
+                  style={styles.backButton}
+                  onPress={() => {
+                    if (isEditing) {
+                      router.replace('/(tabs)/profile');
+                    } else {
+                      animateToNextStep(2);
+                    }
+                  }}
+                >
+                  <Text style={styles.backLabel}>← Geri</Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.primaryButton,
+                    styles.completeButton,
+                    isSubmitting && styles.primaryButtonDisabled,
+                  ]}
+                  onPress={handleHeightWeightSubmit}
+                  disabled={isSubmitting}
+                >
                   <Text style={styles.primaryLabel}>
-                    {isSubmitting ? 'Hazırlanıyor...' : 'Başlayalım! 🚀'}
+                    {isSubmitting ? 'Kaydediliyor...' : isEditing ? 'Kaydet' : 'Başlayalım! 🚀'}
                   </Text>
                 </Pressable>
               </View>

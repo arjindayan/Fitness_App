@@ -17,7 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import {
   useSearchUserByCode,
   useSendFriendRequest,
@@ -31,8 +31,10 @@ import {
   useFriendsTodayWorkouts,
   useSendWorkoutInvite,
   useIncomingWorkoutInvites,
+  useIncomingWorkoutGroupJoinRequests,
   useOutgoingWorkoutInvites,
   useRespondToWorkoutInvite,
+  useRespondToWorkoutGroupJoinRequest,
 } from '@/services/friendService';
 import { useProgramDetail } from '@/services/programService';
 import { useSessionContext } from '@/state/SessionProvider';
@@ -40,6 +42,7 @@ import { Theme, useTheme } from '@/theme';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { fromDayIndex } from '@/services/programService';
 import { Image } from 'react-native';
+import { getMovementImage } from '@/utils/movementImages';
 
 type TabType = 'today' | 'friends' | 'requests';
 
@@ -52,7 +55,7 @@ export default function SocialScreen() {
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  
+
   // Seçili program detayı
   const { data: selectedProgram, isLoading: loadingProgram } = useProgramDetail(selectedProgramId ?? undefined);
 
@@ -67,13 +70,15 @@ export default function SocialScreen() {
   const cancelRequest = useCancelFriendRequest();
   const { data: friendships = [], isLoading: loadingFriends } = useFriendships(userId);
   const removeFriend = useRemoveFriend();
-  
+
   // Bugün antrenman yapacak arkadaşlar
   const { data: friendsTodayWorkouts = [], isLoading: loadingTodayWorkouts } = useFriendsTodayWorkouts(userId);
   const sendWorkoutInvite = useSendWorkoutInvite();
   const { data: workoutInvites = [], isLoading: loadingInvites } = useIncomingWorkoutInvites(userId);
+  const { data: groupJoinRequests = [], isLoading: loadingGroupJoins } = useIncomingWorkoutGroupJoinRequests(userId);
   const { data: sentInviteIds = [] } = useOutgoingWorkoutInvites(userId); // Bugün kime davet gönderildi
   const respondInvite = useRespondToWorkoutInvite();
+  const respondGroupJoin = useRespondToWorkoutGroupJoinRequest();
 
   const handleCopyCode = async () => {
     if (profile?.user_code) {
@@ -103,7 +108,7 @@ export default function SocialScreen() {
 
     try {
       const user = await searchUser.mutateAsync(searchCode);
-      
+
       if (!user) {
         Alert.alert('Bulunamadı', 'Bu kodla eşleşen kullanıcı bulunamadı');
         return;
@@ -228,10 +233,10 @@ export default function SocialScreen() {
   };
 
   const handleRespondInvite = (inviteId: string, status: 'accepted' | 'rejected', senderName: string) => {
-    const message = status === 'accepted' 
+    const message = status === 'accepted'
       ? `${senderName} ile bugün beraber idman yapacaksın! 🎉`
       : 'Davet reddedildi.';
-    
+
     respondInvite.mutate({ inviteId, status }, {
       onSuccess: () => {
         if (status === 'accepted') {
@@ -244,8 +249,34 @@ export default function SocialScreen() {
     });
   };
 
+  const handleRespondGroupJoinRequest = (requestId: string, status: 'accepted' | 'rejected', requesterName: string) => {
+    const title = status === 'accepted' ? 'Onayla' : 'Reddet';
+    const message =
+      status === 'accepted'
+        ? `${requesterName} idman grubuna katılmak istiyor. Kabul ediyor musun?`
+        : `${requesterName} katılım isteğini reddetmek istiyor musun?`;
+
+    Alert.alert(title, message, [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: status === 'accepted' ? 'Kabul Et' : 'Reddet',
+        style: status === 'rejected' ? 'destructive' : 'default',
+        onPress: async () => {
+          try {
+            const result = await respondGroupJoin.mutateAsync({ requestId, status });
+            if (result === 'accepted') {
+              Alert.alert('Tamam', 'Tüm grup onayladı, kişi gruba eklendi.');
+            }
+          } catch (error: any) {
+            Alert.alert('Hata', error.message ?? 'İşlem yapılamadı');
+          }
+        },
+      },
+    ]);
+  };
+
   const pendingRequestsCount = incomingRequests.length;
-  const pendingInvitesCount = workoutInvites.length;
+  const pendingInvitesCount = workoutInvites.length + groupJoinRequests.length;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -315,6 +346,49 @@ export default function SocialScreen() {
         {/* Content */}
         {activeTab === 'today' ? (
           <ScrollView style={styles.requestsScroll} showsVerticalScrollIndicator={false}>
+            {groupJoinRequests.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Grup Katılım İstekleri</Text>
+                {groupJoinRequests.map((request) => (
+                  <View key={request.id} style={styles.requestCard}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{request.requester?.display_name?.charAt(0).toUpperCase() ?? '?'}</Text>
+                    </View>
+                    <View style={styles.requestInfo}>
+                      <Text style={styles.requestName}>{request.requester?.display_name ?? 'Kullanıcı'}</Text>
+                      <Text style={styles.requestCode}>{request.message ?? 'Bugün beraber idman yapmak istiyor.'}</Text>
+                    </View>
+                    <View style={styles.requestActions}>
+                      <Pressable
+                        style={styles.acceptButton}
+                        onPress={() =>
+                          handleRespondGroupJoinRequest(
+                            request.id,
+                            'accepted',
+                            request.requester?.display_name ?? 'Kullanıcı'
+                          )
+                        }
+                      >
+                        <Text style={styles.acceptText}>✓</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.rejectButton}
+                        onPress={() =>
+                          handleRespondGroupJoinRequest(
+                            request.id,
+                            'rejected',
+                            request.requester?.display_name ?? 'Kullanıcı'
+                          )
+                        }
+                      >
+                        <Text style={styles.rejectText}>✕</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </>
+            )}
+
             {/* Gelen İdman Davetleri */}
             {workoutInvites.length > 0 && (
               <>
@@ -369,11 +443,7 @@ export default function SocialScreen() {
               </View>
             ) : (
               friendsTodayWorkouts.map((item, index) => (
-                <Pressable
-                  key={`${item.friendId}-${index}`}
-                  style={styles.todayWorkoutCard}
-                  onPress={() => setSelectedProgramId(item.programId)}
-                >
+                <View key={`${item.friendId}-${index}`} style={styles.todayWorkoutCard}>
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>
                       {item.friendName.charAt(0).toUpperCase()}
@@ -393,19 +463,16 @@ export default function SocialScreen() {
                     </View>
                   </View>
                   {item.status === 'pending' && (
-                      <Pressable
-                        style={styles.inviteButton}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleSendWorkoutInvite(item.friendId, item.friendName);
-                      }}
-                      >
+                    <Pressable
+                      style={styles.inviteButton}
+                      onPress={() => handleSendWorkoutInvite(item.friendId, item.friendName)}
+                    >
                       <Text style={styles.inviteButtonText}>
                         {sentInviteIds.includes(item.friendId) ? '✓ Davet Gönderildi' : 'Davet Et'}
                       </Text>
-                      </Pressable>
+                    </Pressable>
                   )}
-                </Pressable>
+                </View>
               ))
             )}
           </ScrollView>
@@ -530,8 +597,8 @@ export default function SocialScreen() {
 
       {/* Arkadaş Arama Modal */}
       <Modal visible={searchModalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
           <Pressable style={styles.modalBackdrop} onPress={() => setSearchModalVisible(false)} />
@@ -598,7 +665,7 @@ export default function SocialScreen() {
                 <Text style={styles.programModalLoadingText}>Program yükleniyor...</Text>
               </View>
             ) : selectedProgram ? (
-              <ScrollView 
+              <ScrollView
                 style={styles.programModalScroll}
                 contentContainerStyle={styles.programModalContent}
                 showsVerticalScrollIndicator={false}
@@ -641,34 +708,42 @@ export default function SocialScreen() {
                         <Text style={styles.programMuted}>Henüz hareket eklenmedi</Text>
                       ) : (
                         <View style={styles.programExerciseList}>
-                          {exercises.map((exercise, idx) => (
-                            <View key={`${exercise.id}-${idx}`} style={styles.programExerciseRow}>
-                              {exercise.movements?.image_url ? (
-                                <Image 
-                                  source={{ uri: exercise.movements.image_url }} 
-                                  style={styles.programExerciseImage} 
-                                />
-                              ) : (
-                                <View style={styles.programExerciseImagePlaceholder}>
-                                  <Text style={styles.programExerciseImagePlaceholderText}>💪</Text>
-                                </View>
-                              )}
-                              <View style={styles.programExerciseInfo}>
-                                <Text style={styles.programExerciseName}>
-                                  {exercise.movements?.name ?? 'Bilinmeyen Hareket'}
-                                </Text>
-                                <Text style={styles.programExerciseMeta}>
-                                  {exercise.sets} set × {exercise.reps} tekrar
-                                  {exercise.rest_seconds ? ` • ${exercise.rest_seconds}s dinlenme` : ''}
-                                </Text>
-                                {exercise.movements?.equipment && (
-                                  <Text style={styles.programExerciseEquipment}>
-                                    {exercise.movements.equipment}
-                                  </Text>
+                          {exercises.map((exercise, idx) => {
+                            const localImage = getMovementImage(exercise.movements?.name);
+                            return (
+                              <View key={`${exercise.id}-${idx}`} style={styles.programExerciseRow}>
+                                {localImage ? (
+                                  <Image
+                                    source={localImage}
+                                    style={styles.programExerciseImage}
+                                  />
+                                ) : exercise.movements?.image_url ? (
+                                  <Image
+                                    source={{ uri: exercise.movements.image_url }}
+                                    style={styles.programExerciseImage}
+                                  />
+                                ) : (
+                                  <View style={styles.programExerciseImagePlaceholder}>
+                                    <Text style={styles.programExerciseImagePlaceholderText}>💪</Text>
+                                  </View>
                                 )}
+                                <View style={styles.programExerciseInfo}>
+                                  <Text style={styles.programExerciseName}>
+                                    {exercise.movements?.name ?? 'Bilinmeyen Hareket'}
+                                  </Text>
+                                  <Text style={styles.programExerciseMeta}>
+                                    {exercise.sets} set × {exercise.reps} tekrar
+                                    {exercise.rest_seconds ? ` • ${exercise.rest_seconds}s dinlenme` : ''}
+                                  </Text>
+                                  {exercise.movements?.equipment && (
+                                    <Text style={styles.programExerciseEquipment}>
+                                      {exercise.movements.equipment}
+                                    </Text>
+                                  )}
+                                </View>
                               </View>
-                            </View>
-                          ))}
+                            );
+                          })}
                         </View>
                       )}
                     </View>
@@ -1112,14 +1187,16 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   // Davet kartı
   inviteCard: {
-    backgroundColor: '#e8f4e8',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#c7e8db',
+    borderColor: theme.colors.border,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.primary,
     marginBottom: 10,
   },
   inviteInfo: {

@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Swipeable } from 'react-native-gesture-handler';
 
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { useProgramList, fromDayIndex, useDeleteProgramMutation } from '@/services/programService';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { Theme, useTheme } from '@/theme';

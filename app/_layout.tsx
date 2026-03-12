@@ -2,7 +2,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform, StatusBar } from 'react-native';
 
-import { LoadingScreen } from '@/components/LoadingScreen';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { AppProvider } from '@/providers/AppProvider';
 import { useSessionContext } from '@/state/SessionProvider';
 import { useTheme } from '@/theme';
@@ -46,9 +46,11 @@ function RootLayoutNav() {
       }
     } else {
       // Session var ve onboarding tamamlanmış
-      if (inAuthGroup || inOnboardingGroup || segments[0] === 'index' || segments.length === 0) {
+      // Onboarding ekranındayken yönlendirme yapma (kullanıcı profil düzenliyor olabilir)
+      if (inAuthGroup || segments[0] === 'index' || segments.length === 0) {
         router.replace('/(tabs)/today');
       }
+      // inOnboardingGroup kontrolünü kaldırdık - kullanıcı istediği zaman onboarding'e gidebilir
     }
   }, [session, profile, isLoading, segments]);
 
@@ -58,17 +60,17 @@ function RootLayoutNav() {
   }
 
   return (
-      <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(onboarding)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="program-builder"
-          options={{ presentation: 'modal', headerShown: true, title: 'Yeni Program' }}
-        />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(onboarding)" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="(modals)/program-builder"
+        options={{ presentation: 'modal', headerShown: true, title: 'Yeni Program' }}
+      />
+      <Stack.Screen name="+not-found" />
+    </Stack>
   );
 }
 

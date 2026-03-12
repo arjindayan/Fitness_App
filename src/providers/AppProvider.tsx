@@ -5,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider } from '../state/SessionProvider';
-import { SplashOverlay } from '@/components/SplashOverlay';
+import { SplashOverlay } from '@/components/common/SplashOverlay';
 import { ThemeProvider } from '@/theme';
 
 type GlobalErrorHandler = (error: any, isFatal?: boolean) => void;

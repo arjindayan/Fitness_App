@@ -101,13 +101,52 @@ CREATE POLICY "Users can delete their own requests"
 -- Friendships RLS
 CREATE POLICY "Users can view their own friendships"
   ON public.friendships FOR SELECT
-  USING (auth.uid() = user_id OR auth.uid() = friend_id);
+  USING (auth.uid() = user_id);
 
-CREATE POLICY "System can insert friendships"
+DROP POLICY IF EXISTS "System can insert friendships" ON public.friendships;
+DROP POLICY IF EXISTS "Users can insert friendships for accepted requests" ON public.friendships;
+
+CREATE POLICY "Users can insert friendships for accepted requests"
   ON public.friendships FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (
+    auth.uid() = user_id
+    AND user_id != friend_id
+    AND EXISTS (
+      SELECT 1
+      FROM public.friend_requests fr
+      WHERE fr.status = 'accepted'
+        AND (
+          (fr.sender_id = user_id AND fr.receiver_id = friend_id)
+          OR (fr.sender_id = friend_id AND fr.receiver_id = user_id)
+        )
+    )
+  );
 
 CREATE POLICY "Users can delete their own friendships"
   ON public.friendships FOR DELETE
   USING (auth.uid() = user_id OR auth.uid() = friend_id);
+
+-- İki yönlü arkadaşlık kaydını otomatik oluştur (ters kaydı ekle)
+DROP TRIGGER IF EXISTS create_reverse_friendship ON public.friendships;
+DROP FUNCTION IF EXISTS public.create_reverse_friendship_fn();
+
+CREATE OR REPLACE FUNCTION public.create_reverse_friendship_fn()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.friendships (user_id, friend_id)
+  VALUES (NEW.friend_id, NEW.user_id)
+  ON CONFLICT (user_id, friend_id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER create_reverse_friendship
+  AFTER INSERT ON public.friendships
+  FOR EACH ROW
+  EXECUTE FUNCTION public.create_reverse_friendship_fn();
 

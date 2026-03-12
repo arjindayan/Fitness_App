@@ -244,13 +244,7 @@ export async function acceptFriendRequest(requestId: string): Promise<void> {
   }
 
   // Sonra gönderen tarafı
-  const { error: friendship2Error } = await supabase
-    .from('friendships')
-    .insert({ user_id: request.sender_id, friend_id: user.id });
-
-  if (friendship2Error && friendship2Error.code !== '23505') {
-    throw friendship2Error;
-  }
+  // Not: ters kaydın DB trigger’ı ile oluşturulması beklenir.
 }
 
 // Arkadaşlık isteğini reddet
@@ -596,6 +590,22 @@ export type WorkoutInvite = {
   };
 };
 
+export type WorkoutGroupJoinRequest = {
+  id: string;
+  group_id: string;
+  requester_id: string;
+  target_user_id: string;
+  message: string | null;
+  workout_date: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  requester?: {
+    display_name: string | null;
+    user_code: string | null;
+    avatar_url: string | null;
+  };
+};
+
 // Beraber idman daveti gönder
 export async function sendWorkoutInvite(receiverId: string, message?: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -604,21 +614,12 @@ export async function sendWorkoutInvite(receiverId: string, message?: string): P
     throw new Error('Oturum açılmamış');
   }
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const { error } = await supabase.rpc('send_workout_invite_or_group_request', {
+    p_receiver_id: receiverId,
+    p_message: message ?? null,
+  });
 
-  const { error } = await supabase
-    .from('workout_invites')
-    .insert({
-      sender_id: user.id,
-      receiver_id: receiverId,
-      message: message ?? null,
-      invite_date: today,
-      status: 'pending',
-    });
-
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 }
 
 // Gelen idman davetlerini getir
@@ -665,14 +666,73 @@ export async function fetchIncomingWorkoutInvites(): Promise<WorkoutInvite[]> {
 
 // Davet durumunu güncelle
 export async function respondToWorkoutInvite(inviteId: string, status: 'accepted' | 'rejected'): Promise<void> {
-  const { error } = await supabase
-    .from('workout_invites')
-    .update({ status })
-    .eq('id', inviteId);
+  const { error } = await supabase.rpc('respond_to_workout_invite', {
+    p_invite_id: inviteId,
+    p_new_status: status,
+  });
 
   if (error) {
     throw error;
   }
+}
+
+// Bugünkü gruba katılım isteklerini getir (oy vermen gerekenler)
+export async function fetchIncomingWorkoutGroupJoinRequests(): Promise<WorkoutGroupJoinRequest[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error('Oturum aÇõŽñlmamŽñY');
+  }
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  const { data, error } = await supabase
+    .from('workout_group_join_votes')
+    .select('request_id, workout_group_join_requests(*)')
+    .eq('voter_id', user.id)
+    .eq('status', 'pending')
+    .eq('workout_group_join_requests.workout_date', today);
+
+  if (error) {
+    throw error;
+  }
+
+  const requests = (data ?? [])
+    .map((row: any) => row.workout_group_join_requests)
+    .filter(Boolean) as WorkoutGroupJoinRequest[];
+
+  const enriched: WorkoutGroupJoinRequest[] = [];
+
+  for (const request of requests) {
+    const { data: requesterProfile } = await supabase
+      .from('profiles')
+      .select('display_name, user_code, avatar_url')
+      .eq('id', request.requester_id)
+      .single();
+
+    enriched.push({
+      ...request,
+      requester: requesterProfile ?? undefined,
+    });
+  }
+
+  return enriched;
+}
+
+export async function respondToWorkoutGroupJoinRequest(
+  requestId: string,
+  status: 'accepted' | 'rejected'
+): Promise<'pending' | 'accepted' | 'rejected'> {
+  const { data, error } = await supabase.rpc('respond_to_workout_group_join_request', {
+    p_request_id: requestId,
+    p_new_status: status,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as any) ?? 'pending';
 }
 
 export function useSendWorkoutInvite() {
@@ -708,6 +768,26 @@ export function useRespondToWorkoutInvite() {
   });
 }
 
+export function useIncomingWorkoutGroupJoinRequests(userId?: string) {
+  return useQuery({
+    queryKey: [...WORKOUT_INVITES_KEY, 'group-join', 'incoming', userId],
+    queryFn: fetchIncomingWorkoutGroupJoinRequests,
+    enabled: !!userId,
+  });
+}
+
+export function useRespondToWorkoutGroupJoinRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ requestId, status }: { requestId: string; status: 'accepted' | 'rejected' }) =>
+      respondToWorkoutGroupJoinRequest(requestId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: WORKOUT_INVITES_KEY });
+    },
+  });
+}
+
 // Bugün gönderilen davetleri getir (kime davet gönderildiğini takip etmek için)
 export async function fetchOutgoingWorkoutInvites(): Promise<string[]> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -718,18 +798,32 @@ export async function fetchOutgoingWorkoutInvites(): Promise<string[]> {
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  const { data, error } = await supabase
+  const { data: invites, error: inviteError } = await supabase
     .from('workout_invites')
     .select('receiver_id')
     .eq('sender_id', user.id)
     .eq('invite_date', today);
 
-  if (error) {
+  if (inviteError) {
     return [];
   }
 
   // Bugün davet gönderilen kullanıcı ID'lerini döndür
-  return data?.map(d => d.receiver_id) ?? [];
+  const { data: groupRequests, error: groupError } = await supabase
+    .from('workout_group_join_requests')
+    .select('target_user_id')
+    .eq('requester_id', user.id)
+    .eq('workout_date', today)
+    .eq('status', 'pending');
+
+  if (groupError) {
+    return invites?.map((d: any) => d.receiver_id) ?? [];
+  }
+
+  return [
+    ...(invites?.map((d: any) => d.receiver_id) ?? []),
+    ...(groupRequests?.map((d: any) => d.target_user_id) ?? []),
+  ];
 }
 
 export function useOutgoingWorkoutInvites(userId?: string) {

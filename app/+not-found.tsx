@@ -2,7 +2,7 @@ import { Link } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { Theme, useTheme } from '@/theme';
 
 export default function NotFound() {

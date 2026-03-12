@@ -6,7 +6,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { signInWithEmail, signUpWithEmail } from '@/services/authService';
 import { Theme, useTheme } from '@/theme';
 

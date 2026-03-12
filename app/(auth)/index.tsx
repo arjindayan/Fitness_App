@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { signInWithGoogle } from '@/services/authService';
 import { Theme, useTheme } from '@/theme';
 
@@ -48,7 +48,7 @@ export default function WelcomeScreen() {
               <Text style={styles.logoEmoji}>💪</Text>
             </View>
           </LinearGradient>
-          
+
           <View style={styles.brandSection}>
             <Text style={styles.brandName}>FitnessXS</Text>
             <Text style={styles.brandTagline}>Dönüşümün başlasın</Text>
@@ -85,7 +85,7 @@ export default function WelcomeScreen() {
         <View style={styles.loginSection}>
           <Text style={styles.loginTitle}>Hemen Başla</Text>
           <Text style={styles.loginSubtitle}>Hesabınla giriş yap veya yeni hesap oluştur</Text>
-          
+
           <View style={styles.buttonGroup}>
             <Pressable style={styles.emailButton} onPress={handleEmailPress}>
               <LinearGradient
@@ -97,10 +97,10 @@ export default function WelcomeScreen() {
               <Text style={styles.emailIcon}>✉️</Text>
               <Text style={styles.emailButtonText}>Email ile devam et</Text>
             </Pressable>
-            
-            <Pressable 
-              style={[styles.googleButton, isGoogleLoading && styles.buttonDisabled]} 
-              onPress={handleGooglePress} 
+
+            <Pressable
+              style={[styles.googleButton, isGoogleLoading && styles.buttonDisabled]}
+              onPress={handleGooglePress}
               disabled={isGoogleLoading}
             >
               <Text style={styles.googleIcon}>G</Text>

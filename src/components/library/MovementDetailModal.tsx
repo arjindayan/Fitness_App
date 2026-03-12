@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { MovementProgressChart } from '@/components/MovementProgressChart';
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { MovementProgressChart } from '@/components/library/MovementProgressChart';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { useCreateExerciseLogMutation } from '@/services/exerciseLogService';
 import { Movement } from '@/types/movement';
 import { Theme, useTheme } from '@/theme';
+import { getMovementImage } from '@/utils/movementImages';
 
 type Props = {
   visible: boolean;
@@ -89,13 +90,20 @@ export function MovementDetailModal({ visible, movement, scheduleInstanceId, onC
 
             {/* Hareket Bilgisi */}
             <View style={styles.movementInfo}>
-              {movement.image_url ? (
-                <Image source={{ uri: movement.image_url }} style={styles.movementImage} />
-              ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Text style={styles.imagePlaceholderText}>💪</Text>
-                </View>
-              )}
+              {(() => {
+                const localImage = getMovementImage(movement.name);
+                if (localImage) {
+                  return <Image source={localImage} style={styles.movementImage} />;
+                } else if (movement.image_url) {
+                  return <Image source={{ uri: movement.image_url }} style={styles.movementImage} />;
+                } else {
+                  return (
+                    <View style={styles.imagePlaceholder}>
+                      <Text style={styles.imagePlaceholderText}>💪</Text>
+                    </View>
+                  );
+                }
+              })()}
               <Text style={styles.movementName}>{movement.name}</Text>
               <View style={styles.tagsRow}>
                 {movement.equipment && (
@@ -130,7 +138,7 @@ export function MovementDetailModal({ visible, movement, scheduleInstanceId, onC
             ) : (
               <View style={styles.logForm}>
                 <Text style={styles.formTitle}>Yeni Kayıt</Text>
-                
+
                 <View style={styles.formRow}>
                   <View style={styles.formField}>
                     <Text style={styles.formLabel}>Set</Text>

@@ -18,6 +18,8 @@ export type Profile = {
   training_days: TrainingDay[];
   onboarding_complete: boolean;
   user_code: string | null; // Arkadaş ekleme için unique kod (örn: FIT-ABC123)
+  height_cm: number | null; // Boy (santimetre)
+  weight_kg: number | null; // Kilo (kilogram)
   created_at?: string | null;
   updated_at?: string | null;
 };

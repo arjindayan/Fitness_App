@@ -15,12 +15,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
-import { MovementDetailModal } from '@/components/MovementDetailModal';
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { MovementDetailModal } from '@/components/library/MovementDetailModal';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { MOVEMENT_CATEGORIES, MOVEMENT_EQUIPMENTS } from '@/constants/movements';
 import { useCreateMovementMutation, useMovementList } from '@/services/movementService';
 import { Movement } from '@/types/movement';
 import { Theme, useTheme } from '@/theme';
+import { getMovementImage } from '@/utils/movementImages';
 
 const movementSchema = z.object({
   name: z.string().min(2, 'İsim gir'),
@@ -147,29 +148,34 @@ export default function LibraryScreen() {
             data={data ?? []}
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
-            renderItem={({ item }) => (
-              <Pressable style={styles.card} onPress={() => setSelectedMovement(item)}>
-                <View style={styles.cardContent}>
-                  {item.image_url ? (
-                    <Image source={{ uri: item.image_url }} style={styles.cardImage} />
-                  ) : (
-                    <View style={styles.cardImagePlaceholder}>
-                      <Text style={styles.cardImagePlaceholderText}>💪</Text>
+            renderItem={({ item }) => {
+              const localImage = getMovementImage(item.name);
+              return (
+                <Pressable style={styles.card} onPress={() => setSelectedMovement(item)}>
+                  <View style={styles.cardContent}>
+                    {localImage ? (
+                      <Image source={localImage} style={styles.cardImage} />
+                    ) : item.image_url ? (
+                      <Image source={{ uri: item.image_url }} style={styles.cardImage} />
+                    ) : (
+                      <View style={styles.cardImagePlaceholder}>
+                        <Text style={styles.cardImagePlaceholderText}>💪</Text>
+                      </View>
+                    )}
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardTitle}>{item.name}</Text>
+                      <Text style={styles.cardMeta}>
+                        {item.equipment ?? 'Ekipman yok'} • {item.difficulty ?? 'Seviye belirtilmedi'}
+                      </Text>
+                      {item.instructions ? (
+                        <Text style={styles.cardNote} numberOfLines={1}>{item.instructions}</Text>
+                      ) : null}
                     </View>
-                  )}
-                  <View style={styles.cardInfo}>
-                    <Text style={styles.cardTitle}>{item.name}</Text>
-                    <Text style={styles.cardMeta}>
-                      {item.equipment ?? 'Ekipman yok'} • {item.difficulty ?? 'Seviye belirtilmedi'}
-                    </Text>
-                    {item.instructions ? (
-                      <Text style={styles.cardNote} numberOfLines={1}>{item.instructions}</Text>
-                    ) : null}
+                    <Text style={styles.cardArrow}>→</Text>
                   </View>
-                  <Text style={styles.cardArrow}>→</Text>
-                </View>
-              </Pressable>
-            )}
+                </Pressable>
+              );
+            }}
           />
         )}
 

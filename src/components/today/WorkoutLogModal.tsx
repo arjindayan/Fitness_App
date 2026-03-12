@@ -18,6 +18,7 @@ import { PastelBackdrop } from './PastelBackdrop';
 import { useCreateExerciseLogMutation } from '@/services/exerciseLogService';
 import { useWorkoutExercises, WorkoutExerciseWithMovement } from '@/services/scheduleService';
 import { Theme, useTheme } from '@/theme';
+import { getMovementImage } from '@/utils/movementImages';
 
 type SetEntry = {
   reps: string;
@@ -185,10 +186,16 @@ export function WorkoutLogModal({
                 const entry = getEntry(exercise.id);
                 if (!entry) return null;
                 
+                const localImage = getMovementImage(exercise.movements?.name);
                 return (
                   <View key={exercise.id} style={styles.exerciseCard}>
                     <View style={styles.exerciseHeader}>
-                      {exercise.movements.image_url ? (
+                      {localImage ? (
+                        <Image
+                          source={localImage}
+                          style={styles.exerciseImage}
+                        />
+                      ) : exercise.movements.image_url ? (
                         <Image
                           source={{ uri: exercise.movements.image_url }}
                           style={styles.exerciseImage}

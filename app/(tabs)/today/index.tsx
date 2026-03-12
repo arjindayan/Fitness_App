@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { MonthlyCalendarModal } from '@/components/MonthlyCalendarModal';
-import { PastelBackdrop } from '@/components/PastelBackdrop';
-import { WeeklyStreak } from '@/components/WeeklyStreak';
-import { WorkoutLogModal } from '@/components/WorkoutLogModal';
+import { MonthlyCalendarModal } from '@/components/today/MonthlyCalendarModal';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
+import { WeeklyStreak } from '@/components/today/WeeklyStreak';
+import { WorkoutLogModal } from '@/components/today/WorkoutLogModal';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { fromDayIndex } from '@/services/programService';
 import { useTodayPlan, useUpdateScheduleStatus, useWeeklyWorkoutHistory, useSkipAndShiftWorkouts } from '@/services/scheduleService';
@@ -127,27 +127,27 @@ export default function TodayScreen() {
         {data.map((item) => {
           const dayLabel = TRAINING_DAYS.find((day) => day.key === fromDayIndex(item.program_workouts?.day_of_week ?? 0))?.label;
           return (
-          <View key={item.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{item.programs?.title ?? 'Antrenman'}</Text>
-            <Text style={styles.cardMeta}>
-              {dayLabel} {item.status === 'done' ? '• Tamamlandı ✓' : '• Bekliyor'}
-            </Text>
-            <View style={styles.cardActions}>
-              <Pressable
-                style={[styles.statusButton, styles.doneButton]}
-                onPress={() => handleCompleteWorkout(item)}
-              >
-                <Text style={styles.statusLabel}>Tamamla + Kaydet</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.statusButton, styles.skipButton]}
-                onPress={() => handleSkipWorkout(item)}
-              >
-                <Text style={styles.statusLabel}>Atla</Text>
-              </Pressable>
+            <View key={item.id} style={styles.card}>
+              <Text style={styles.cardTitle}>{item.programs?.title ?? 'Antrenman'}</Text>
+              <Text style={styles.cardMeta}>
+                {dayLabel} {item.status === 'done' ? '• Tamamlandı ✓' : '• Bekliyor'}
+              </Text>
+              <View style={styles.cardActions}>
+                <Pressable
+                  style={[styles.statusButton, styles.doneButton]}
+                  onPress={() => handleCompleteWorkout(item)}
+                >
+                  <Text style={styles.statusLabel}>Tamamla + Kaydet</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.statusButton, styles.skipButton]}
+                  onPress={() => handleSkipWorkout(item)}
+                >
+                  <Text style={styles.statusLabel}>Atla</Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
-        );
+          );
         })}
       </View>
     );
@@ -163,9 +163,9 @@ export default function TodayScreen() {
         </View>
 
         {/* Haftalık Streak */}
-        <WeeklyStreak 
-          workoutDays={weeklyHistory} 
-          onPress={() => setCalendarVisible(true)} 
+        <WeeklyStreak
+          workoutDays={weeklyHistory}
+          onPress={() => setCalendarVisible(true)}
         />
 
         {/* Adım Sayacı */}
@@ -182,9 +182,9 @@ export default function TodayScreen() {
       </ScrollView>
 
       {/* Aylık Takvim Modal */}
-      <MonthlyCalendarModal 
-        visible={calendarVisible} 
-        onClose={() => setCalendarVisible(false)} 
+      <MonthlyCalendarModal
+        visible={calendarVisible}
+        onClose={() => setCalendarVisible(false)}
       />
 
       {/* Antrenman Kayıt Modal */}

@@ -138,11 +138,20 @@ CREATE POLICY "Users can view their own friendships"
   USING (auth.uid() = user_id);
 
 -- Kendi arkadaşlığını ekleyebilir
-CREATE POLICY "Users can insert their own friendships"
+CREATE POLICY "Users can insert friendships for accepted requests"
   ON public.friendships FOR INSERT
   WITH CHECK (
     auth.uid() = user_id
     AND user_id != friend_id
+    AND EXISTS (
+      SELECT 1
+      FROM public.friend_requests fr
+      WHERE fr.status = 'accepted'
+        AND (
+          (fr.sender_id = user_id AND fr.receiver_id = friend_id)
+          OR (fr.sender_id = friend_id AND fr.receiver_id = user_id)
+        )
+    )
   );
 
 -- Kendi arkadaşlığını silebilir
@@ -185,6 +194,30 @@ CREATE TRIGGER delete_reverse_friendship
   AFTER DELETE ON public.friendships
   FOR EACH ROW
   EXECUTE FUNCTION delete_reverse_friendship_fn();
+
+-- 7. ArkadaYlŽñk eklendiŽYinde karYŽñ tarafŽñ kaydŽñnŽñ da otomatik ekle
+DROP TRIGGER IF EXISTS create_reverse_friendship ON public.friendships;
+DROP FUNCTION IF EXISTS public.create_reverse_friendship_fn();
+
+CREATE OR REPLACE FUNCTION public.create_reverse_friendship_fn()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.friendships (user_id, friend_id)
+  VALUES (NEW.friend_id, NEW.user_id)
+  ON CONFLICT (user_id, friend_id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER create_reverse_friendship
+  AFTER INSERT ON public.friendships
+  FOR EACH ROW
+  EXECUTE FUNCTION public.create_reverse_friendship_fn();
 
 -- Bilgilendirme
 DO $$

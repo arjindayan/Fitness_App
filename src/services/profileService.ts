@@ -10,6 +10,8 @@ export type ProfileInput = {
   trainingDays: TrainingDay[];
   avatarUrl?: string | null;
   onboardingComplete?: boolean;
+  heightCm?: number | null;
+  weightKg?: number | null;
 };
 
 export async function upsertProfile(userId: string, payload: ProfileInput) {
@@ -28,6 +30,8 @@ export async function upsertProfile(userId: string, payload: ProfileInput) {
         training_days: payload.trainingDays,
         onboarding_complete: payload.onboardingComplete ?? true,
         avatar_url: payload.avatarUrl ?? null,
+        height_cm: payload.heightCm ?? null,
+        weight_kg: payload.weightKg ?? null,
         updated_at: now,
       },
       {

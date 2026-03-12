@@ -16,7 +16,7 @@ import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { useMonthlyWorkoutHistory, WorkoutDay } from '@/services/scheduleService';
 import { Theme, useTheme } from '@/theme';
 
@@ -37,7 +37,7 @@ export function MonthlyCalendarModal({ visible, onClose }: Props) {
   const month = currentDate.getMonth();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  
+
   const { data: workoutDays = [], isLoading } = useMonthlyWorkoutHistory(year, month);
 
   const goToPreviousMonth = () => setCurrentDate(subMonths(currentDate, 1));
@@ -61,7 +61,7 @@ export function MonthlyCalendarModal({ visible, onClose }: Props) {
   while (day <= calendarEnd) {
     const dateStr = format(day, 'yyyy-MM-dd');
     const workout = workoutDays.find((w) => w.date === dateStr) ?? null;
-    
+
     calendarDays.push({
       date: new Date(day),
       isCurrentMonth: isSameMonth(day, currentDate),

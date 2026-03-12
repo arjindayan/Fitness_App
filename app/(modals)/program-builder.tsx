@@ -10,13 +10,14 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PastelBackdrop } from '@/components/PastelBackdrop';
+import { PastelBackdrop } from '@/components/common/PastelBackdrop';
 import { TRAINING_DAYS } from '@/constants/trainingDays';
 import { useCreateProgramMutation } from '@/services/programService';
 import { useMovementList } from '@/services/movementService';
@@ -53,8 +54,18 @@ export default function ProgramBuilderScreen() {
   const { data: movements, isLoading } = useMovementList(movementParams);
   const createProgramMutation = useCreateProgramMutation();
 
-  const { meta, trainingDays, workouts, setMeta, toggleTrainingDay, addExercise, removeExercise, reset } =
-    useProgramBuilderStore();
+  const {
+    meta,
+    trainingDays,
+    workouts,
+    syncAcrossDays,
+    setMeta,
+    toggleTrainingDay,
+    setSyncAcrossDays,
+    addExercise,
+    removeExercise,
+    reset,
+  } = useProgramBuilderStore();
 
   const {
     control,
@@ -80,9 +91,9 @@ export default function ProgramBuilderScreen() {
 
     // Aynı hareket bu günde zaten var mı kontrol et
     const existingWorkout = workouts.find((w) => w.day === pickerDay);
-    const alreadyExists = existingWorkout?.exercises.some(
-      (e) => e.movementId === selectedMovementId
-    );
+    const alreadyExists = syncAcrossDays
+      ? workouts.some((w) => w.exercises.some((e) => e.movementId === selectedMovementId))
+      : existingWorkout?.exercises.some((e) => e.movementId === selectedMovementId);
 
     if (alreadyExists) {
       alert('Bu hareket bu güne zaten eklenmiş!');
@@ -183,12 +194,31 @@ export default function ProgramBuilderScreen() {
         ) : (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Workout planı</Text>
+
+            {trainingDays.length > 1 ? (
+              <View style={styles.preferenceRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionSubtitle}>Aynı hareketleri tüm günlere uygula</Text>
+                  <Text style={styles.toggleHelper}>Açıksa eklediğin hareketler seçtiğin tüm günlere eklenir.</Text>
+                </View>
+                <Switch
+                  value={syncAcrossDays}
+                  onValueChange={setSyncAcrossDays}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={syncAcrossDays ? '#0f1d3d' : '#ffffff'}
+                  ios_backgroundColor={theme.colors.border}
+                />
+              </View>
+            ) : null}
             {trainingDays.length === 0 ? (
               <Text style={styles.helperText}>Önce antrenman günlerini seç</Text>
             ) : (
-              trainingDays.map((day) => {
+              (syncAcrossDays && trainingDays.length > 1 ? [trainingDays[0]] : trainingDays).map((day) => {
                 const workout = workouts.find((w) => w.day === day);
-                const dayLabel = TRAINING_DAYS.find((d) => d.key === day)?.label ?? day;
+                const dayLabel =
+                  syncAcrossDays && trainingDays.length > 1
+                    ? 'Tüm seçili günler'
+                    : (TRAINING_DAYS.find((d) => d.key === day)?.label ?? day);
                 return (
                   <View key={day} style={styles.workoutBlock}>
                     <View style={styles.workoutHeader}>
@@ -209,10 +239,10 @@ export default function ProgramBuilderScreen() {
                             </View>
                           )}
                           <View style={styles.exerciseInfo}>
-                        <Text style={styles.exerciseTitle}>{exercise.movementName}</Text>
-                        <Text style={styles.exerciseMeta}>
+                            <Text style={styles.exerciseTitle}>{exercise.movementName}</Text>
+                            <Text style={styles.exerciseMeta}>
                               {exercise.sets} set x {exercise.reps} {exercise.restSeconds ? `| ${exercise.restSeconds}s dinlenme` : ''}
-                        </Text>
+                            </Text>
                           </View>
                         </View>
                         <Pressable style={styles.removeButton} onPress={() => removeExercise(day, index)}>
@@ -266,9 +296,9 @@ export default function ProgramBuilderScreen() {
                 <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
                   {movements?.map((movement) => {
                     const currentDayWorkout = workouts.find((w) => w.day === pickerDay);
-                    const isAlreadyAdded = currentDayWorkout?.exercises.some(
-                      (e) => e.movementId === movement.id
-                    );
+                    const isAlreadyAdded = syncAcrossDays
+                      ? workouts.some((w) => w.exercises.some((e) => e.movementId === movement.id))
+                      : currentDayWorkout?.exercises.some((e) => e.movementId === movement.id);
 
                     return (
                       <Pressable
@@ -341,20 +371,20 @@ export default function ProgramBuilderScreen() {
                       />
                     )}
                   />
-                <Controller
-                  control={control}
-                  name="restSeconds"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Dinlenme saniye (opsiyonel)"
-                      placeholderTextColor={theme.colors.subtle}
-                      value={value}
-                      onChangeText={onChange}
-                      keyboardType="numeric"
-                    />
-                  )}
-                />
+                  <Controller
+                    control={control}
+                    name="restSeconds"
+                    render={({ field: { onChange, value } }) => (
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Dinlenme saniye (opsiyonel)"
+                        placeholderTextColor={theme.colors.subtle}
+                        value={value}
+                        onChangeText={onChange}
+                        keyboardType="numeric"
+                      />
+                    )}
+                  />
                   <Controller
                     control={control}
                     name="note"
@@ -442,6 +472,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   sectionSubtitle: {
     color: theme.colors.muted,
     fontWeight: '700',
+  },
+  preferenceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 6,
+  },
+  toggleHelper: {
+    color: theme.colors.muted,
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '500',
   },
   input: {
     backgroundColor: theme.colors.inputBg,
